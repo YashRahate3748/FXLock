@@ -20,7 +20,7 @@ public class WalletController {
 
     @GetMapping
     public List<Wallet> getWallets() {
-        // Temporary simulated identity for local development.
-        return walletService.getWallets("CUSTOMER_001");
+        // Simulated customer identity for local development.
+        return walletService.getWallets("CUST001");
     }
 }

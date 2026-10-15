@@ -1,6 +1,8 @@
 package com.fxlock.wallet;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -14,23 +16,106 @@ public class WalletRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<Wallet> findByCustomerId(String customerId) {
+    // Used by the existing wallet balance API.
+    public List<Wallet> findByCustomerRef(String customerRef) {
         String sql = """
-                SELECT wallet_id, customer_id, currency_code, balance
-                FROM wallet
-                WHERE customer_id = ?
-                ORDER BY currency_code
+                SELECT w.wallet_id,
+                       w.customer_id,
+                       w.currency_code,
+                       w.balance
+                FROM wallet w
+                JOIN customer c ON c.customer_id = w.customer_id
+                WHERE c.customer_ref = ?
+                ORDER BY w.currency_code
                 """;
 
         return jdbcTemplate.query(
                 sql,
                 (rs, rowNum) -> new Wallet(
-                        rs.getString("wallet_id"),
-                        rs.getString("customer_id"),
+                        rs.getLong("wallet_id"),
+                        rs.getLong("customer_id"),
                         rs.getString("currency_code"),
                         rs.getBigDecimal("balance")
                 ),
-                customerId
+                customerRef
         );
     }
+
+    // Must be called inside the settlement transaction.
+    public Optional<LockedWallet> findByIdForUpdate(Long walletId) {
+        String sql = """
+                SELECT wallet_id,
+                       customer_id,
+                       currency_code,
+                       balance,
+                       status
+                FROM wallet
+                WHERE wallet_id = ?
+                FOR UPDATE
+                """;
+
+        List<LockedWallet> wallets = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new LockedWallet(
+                        rs.getLong("wallet_id"),
+                        rs.getLong("customer_id"),
+                        rs.getString("currency_code"),
+                        rs.getBigDecimal("balance"),
+                        rs.getString("status")
+                ),
+                walletId
+        );
+
+        return wallets.stream().findFirst();
+    }
+
+    public int debit(Long walletId, BigDecimal amount) {
+        requirePositiveAmount(amount);
+
+        String sql = """
+                UPDATE wallet
+                SET balance = balance - ?,
+                    version_no = version_no + 1,
+                    updated_at = SYSTIMESTAMP
+                WHERE wallet_id = ?
+                  AND status = 'ACTIVE'
+                  AND balance >= ?
+                """;
+
+        return jdbcTemplate.update(sql, amount, walletId, amount);
+    }
+
+    public int credit(Long walletId, BigDecimal amount) {
+        requirePositiveAmount(amount);
+
+        String sql = """
+                UPDATE wallet
+                SET balance = balance + ?,
+                    version_no = version_no + 1,
+                    updated_at = SYSTIMESTAMP
+                WHERE wallet_id = ?
+                  AND status = 'ACTIVE'
+                """;
+
+        return jdbcTemplate.update(sql, amount, walletId);
+    }
+
+    private void requirePositiveAmount(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new IllegalArgumentException(
+                    "Wallet update amount must be positive"
+            );
+        }
+
+        // Reject amounts requiring rounding beyond the schema's scale.
+        amount.setScale(4, java.math.RoundingMode.UNNECESSARY);
+    }
+
+    public record LockedWallet(
+            Long walletId,
+            Long customerId,
+            String currencyCode,
+            BigDecimal balance,
+            String status
+    ) {}
 }

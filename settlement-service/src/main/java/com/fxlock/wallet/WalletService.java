@@ -15,7 +15,7 @@ public class WalletService {
     }
 
     @Transactional(readOnly = true)
-    public List<Wallet> getWallets(String customerId) {
-        return walletRepository.findByCustomerId(customerId);
+    public List<Wallet> getWallets(String customerRef) {
+        return walletRepository.findByCustomerRef(customerRef);
     }
 }
