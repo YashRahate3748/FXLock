@@ -47,6 +47,19 @@ public class SettlementService {
         this.auditRepository = auditRepository;
         this.outboxRepository = outboxRepository;
     }
+    
+    @Transactional(readOnly = true)
+    public SettlementResponse getSettlement(
+            String settlementId,
+            String customerRef
+    ) {
+        return settlementRepository
+                .findOwnedById(settlementId, customerRef)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "SETTLEMENT_NOT_FOUND"
+                ));
+    }
 
     @Transactional(
             rollbackFor = Exception.class,

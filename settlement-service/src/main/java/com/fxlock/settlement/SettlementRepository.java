@@ -51,6 +51,42 @@ public class SettlementRepository {
         );
     }
     
+    public java.util.Optional<SettlementResponse> findOwnedById(
+            String settlementId,
+            String customerRef
+    ) {
+        String sql = """
+                SELECT s.settlement_id,
+                       s.quote_id,
+                       s.status,
+                       q.source_currency,
+                       s.source_amount,
+                       q.target_currency,
+                       s.target_amount
+                FROM settlement s
+                JOIN customer c ON c.customer_id = s.customer_id
+                JOIN fx_quote q ON q.quote_id = s.quote_id
+                WHERE s.settlement_id = ?
+                  AND c.customer_ref = ?
+                  AND c.status = 'ACTIVE'
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new SettlementResponse(
+                        rs.getString("settlement_id"),
+                        rs.getString("quote_id"),
+                        rs.getString("status"),
+                        rs.getString("source_currency"),
+                        rs.getBigDecimal("source_amount"),
+                        rs.getString("target_currency"),
+                        rs.getBigDecimal("target_amount")
+                ),
+                settlementId,
+                customerRef
+        ).stream().findFirst();
+    }
+    
     public java.util.Optional<Long> findActiveCustomerIdByRef(String customerRef) {
         return jdbcTemplate.query(
                 """
