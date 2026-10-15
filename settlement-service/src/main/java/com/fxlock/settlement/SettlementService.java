@@ -13,6 +13,10 @@ import com.fxlock.quote.QuoteRepository;
 import com.fxlock.quote.QuoteSnapshot;
 import com.fxlock.wallet.WalletRepository;
 import com.fxlock.wallet.WalletRepository.LockedWallet;
+import com.fxlock.audit.AuditRepository;
+import com.fxlock.outbox.OutboxRepository;
+
+import com.fxlock.idempotency.IdempotencyRepository;
 
 @Service
 public class SettlementService {
@@ -21,30 +25,64 @@ public class SettlementService {
     private final WalletRepository walletRepository;
     private final SettlementRepository settlementRepository;
     private final LedgerRepository ledgerRepository;
+    private final AuditRepository auditRepository;
+    private final OutboxRepository outboxRepository;
+    
+    private final IdempotencyRepository idempotencyRepository;
 
     public SettlementService(
             QuoteRepository quoteRepository,
             WalletRepository walletRepository,
             SettlementRepository settlementRepository,
-            LedgerRepository ledgerRepository
+            LedgerRepository ledgerRepository,
+            IdempotencyRepository idempotencyRepository,
+            AuditRepository auditRepository,
+            OutboxRepository outboxRepository
     ) {
         this.quoteRepository = quoteRepository;
         this.walletRepository = walletRepository;
         this.settlementRepository = settlementRepository;
         this.ledgerRepository = ledgerRepository;
+        this.idempotencyRepository = idempotencyRepository;
+        this.auditRepository = auditRepository;
+        this.outboxRepository = outboxRepository;
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(
+            rollbackFor = Exception.class,
+            isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED
+    )
     public SettlementResponse settle(
             String quoteId,
-            String customerRef
+            String customerRef,
+            String idempotencyKey,
+            String correlationId
     ) {
+    	if (idempotencyKey == null
+    	        || idempotencyKey.isBlank()
+    	        || idempotencyKey.length() > 200) {
+    	    throw new ResponseStatusException(
+    	            HttpStatus.BAD_REQUEST,
+    	            "INVALID_IDEMPOTENCY_KEY"
+    	    );
+    	}
+    	
         Long customerId = settlementRepository
                 .findActiveCustomerIdByRef(customerRef)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
                         "CUSTOMER_NOT_ACTIVE"
                 ));
+        
+        var previousResponse = idempotencyRepository.beginOrReplay(
+                idempotencyKey,
+                customerId,
+                quoteId
+        );
+
+        if (previousResponse.isPresent()) {
+            return previousResponse.get();
+        }
 
         // Lock the quote first.
         QuoteSnapshot quote = quoteRepository
@@ -134,7 +172,7 @@ public class SettlementService {
         }
 
         String settlementId = UUID.randomUUID().toString();
-        String correlationId = UUID.randomUUID().toString();
+//        String correlationId = UUID.randomUUID().toString();
 
         requireOneRow(
                 walletRepository.debit(
@@ -193,7 +231,7 @@ public class SettlementService {
                 "Quote status update"
         );
 
-        return new SettlementResponse(
+        SettlementResponse response = new SettlementResponse(
                 settlementId,
                 quote.quoteId(),
                 "COMPLETED",
@@ -202,6 +240,28 @@ public class SettlementService {
                 quote.targetCurrency(),
                 quote.targetAmount()
         );
+
+        requireOneRow(
+                auditRepository.insertSettlementCompleted(
+                        response,
+                        customerId,
+                        correlationId
+                ),
+                "Success audit insert"
+        );
+
+        requireOneRow(
+                outboxRepository.insertSettlementCompleted(
+                        response,
+                        customerId,
+                        correlationId
+                ),
+                "Completion outbox insert"
+        );
+
+        idempotencyRepository.complete(idempotencyKey, response);
+
+        return response;
     }
 
     private LockedWallet lockWallet(Long walletId) {
