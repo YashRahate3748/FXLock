@@ -1,0 +1,187 @@
+package com.ofss.fxlock.rate.service;
+
+import com.ofss.fxlock.rate.dto.TrustedRateResponse;
+import com.ofss.fxlock.rate.entity.FxConfig;
+import com.ofss.fxlock.rate.entity.MarketRateSnapshot;
+import com.ofss.fxlock.rate.exception.RateUnavailableException;
+import com.ofss.fxlock.rate.repository.FxConfigRepository;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.Instant;
+
+@Service
+public class RateQueryService {
+
+    private static final BigDecimal HUNDRED =
+            new BigDecimal("100");
+
+    private final TrustedRateCache cache;
+    private final FxConfigRepository configRepository;
+    private final ProviderStateService providerStateService;
+
+    public RateQueryService(
+            TrustedRateCache cache,
+            FxConfigRepository configRepository,
+            ProviderStateService providerStateService
+    ) {
+        this.cache = cache;
+        this.configRepository = configRepository;
+        this.providerStateService =
+                providerStateService;
+    }
+
+    public TrustedRateResponse getTrustedRate() {
+
+        FxConfig config =
+                configRepository
+                        .findByCurrencyPair("EUR/USD")
+                        .orElseThrow(
+                                () -> new IllegalStateException(
+                                        "EUR/USD configuration missing"
+                                )
+                        );
+
+        MarketRateSnapshot rate =
+                cache.get()
+                        .orElseThrow(
+                                () -> new RateUnavailableException(
+                                        "No trusted rate is available"
+                                )
+                        );
+
+        long ageSeconds =
+                Duration.between(
+                        rate.getReceivedAt().toInstant(),
+                        Instant.now()
+                ).getSeconds();
+
+        boolean fresh =
+                ageSeconds >= 0 &&
+                ageSeconds <=
+                    config.getMaxRateAgeSeconds();
+
+        if (!fresh) {
+            throw new RateUnavailableException(
+                    "Trusted FX rate is stale"
+            );
+        }
+
+        if (!config.isQuotingEnabled()) {
+            throw new RateUnavailableException(
+                    "Quote generation is disabled"
+            );
+        }
+
+        BigDecimal freshnessScore =
+                calculateFreshnessScore(
+                        ageSeconds,
+                        config.getMaxRateAgeSeconds()
+                );
+
+        BigDecimal anomalyScore =
+                new BigDecimal("100");
+
+        BigDecimal providerScore =
+                switch (
+                    providerStateService.getHealth()
+                ) {
+                    case UP ->
+                            new BigDecimal("100");
+
+                    case DEGRADED ->
+                            new BigDecimal("50");
+
+                    case DOWN ->
+                            BigDecimal.ZERO;
+                };
+
+        BigDecimal stabilityScore =
+                calculateStabilityScore(
+                        rate.getMovementPercent(),
+                        config.getAnomalyThresholdPercent()
+                );
+
+        return new TrustedRateResponse(
+                rate.getId(),
+                "EUR/USD",
+                rate.getMarketRate(),
+                rate.getReceivedAt(),
+                ageSeconds,
+                true,
+                true,
+                providerStateService
+                        .getHealth()
+                        .name(),
+                rate.getMovementPercent(),
+                freshnessScore,
+                anomalyScore,
+                providerScore,
+                stabilityScore
+        );
+    }
+
+    private BigDecimal calculateFreshnessScore(
+            long ageSeconds,
+            int maxAge
+    ) {
+
+        if (ageSeconds >= maxAge) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal age =
+                BigDecimal.valueOf(ageSeconds);
+
+        BigDecimal max =
+                BigDecimal.valueOf(maxAge);
+
+        return HUNDRED
+                .multiply(
+                    BigDecimal.ONE.subtract(
+                        age.divide(
+                            max,
+                            6,
+                            RoundingMode.HALF_UP
+                        )
+                    )
+                )
+                .max(BigDecimal.ZERO)
+                .setScale(
+                    2,
+                    RoundingMode.HALF_UP
+                );
+    }
+
+    private BigDecimal calculateStabilityScore(
+            BigDecimal movement,
+            BigDecimal threshold
+    ) {
+
+        if (movement == null ||
+            movement.compareTo(BigDecimal.ZERO) <= 0) {
+            return HUNDRED;
+        }
+
+        if (movement.compareTo(threshold) >= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return HUNDRED
+                .multiply(
+                    BigDecimal.ONE.subtract(
+                        movement.divide(
+                            threshold,
+                            6,
+                            RoundingMode.HALF_UP
+                        )
+                    )
+                )
+                .setScale(
+                    2,
+                    RoundingMode.HALF_UP
+                );
+    }
+}

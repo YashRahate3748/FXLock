@@ -1,0 +1,9 @@
+/.metadata/
+target/
+.classpath
+.project
+.settings/
+.idea/
+*.log
+.env
+application-local.properties
