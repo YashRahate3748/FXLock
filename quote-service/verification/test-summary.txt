@@ -1,0 +1,28 @@
+Common-schema M2 verification - 19 October 2026
+
+Canonical Oracle SQL SHA-256: 52d60c41e79d7e704f86c2f1e2f6be9322e695f82087201c672115e7d43a9619
+Oracle: localhost:1521/freepdb1; user/schema FXLOCK; 13 common tables.
+
+com.fxlock.quote.OracleSchemaTest: tests=9, failures=0, errors=0, skipped=0
+com.fxlock.quote.ProfileGuardTest: tests=2, failures=0, errors=0, skipped=0
+com.fxlock.quote.QuoteApiTest: tests=9, failures=0, errors=0, skipped=0
+com.fxlock.quote.QuoteBrowserTest: tests=3, failures=0, errors=0, skipped=0
+com.fxlock.quote.QuoteServiceTest: tests=33, failures=0, errors=0, skipped=0
+com.fxlock.quote.UpstreamContractTest: tests=9, failures=0, errors=0, skipped=0
+
+TOTAL: 65 tests, 0 failures, 0 errors, 0 skipped. BUILD SUCCESS.
+Command: ./test-oracle.ps1 -Browser -Package
+
+PASS: exact 13-table Oracle schema, numeric foreign keys and function-based settlement uniqueness index.
+PASS: quote, separate confidence, audit and valid-JSON outbox inserts.
+PASS: shared FX_CONFIG pricing, quoting pause and quote lifetime.
+PASS: other-customer wallet rejection; real snapshot freshness without timestamp refresh.
+PASS: cancellation and Oracle TIMESTAMP(6) precision.
+PASS: forced late failure rolled back FX_QUOTE, QUOTE_CONFIDENCE, AUDIT_EVENT and OUTBOX_EVENT.
+PASS: running Oracle API health, session login, create/retrieve/cancel with numeric wallet IDs.
+API evidence quote: 6fcfdaec-471f-4a5a-a7b4-c86f0425264c
+
+Scope: H2 business/browser tests, isolated actual-contract HTTP tests, and 9 direct Oracle tests.
+Live M1/M3 end-to-end integration and M4 Kafka publication remain pending.
+Oracle-local uses stored provider timestamps; the optional development seed expires normally.
+No passwords, cookies or CSRF tokens are included.
