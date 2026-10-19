@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.fxlock.common.AccessControlTest
--------------------------------------------------------------------------------
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.447 s -- in com.fxlock.common.AccessControlTest
