@@ -167,14 +167,35 @@ Manual checks completed on the developer's machine:
 
 Automated settlement, rollback, concurrency, and idempotency tests are pending. This milestone is a development wallet API, not completed settlement functionality.
 
-## Next work
 
-1. Provisional quote fixtures and quote repository, later aligned with M2.
-2. Settlement and ledger tables.
-3. Atomic quote/wallet locking, validation, debit/credit, and status update.
-4. Idempotency, failure audit, and transactional outbox writes.
-5. Real-Oracle concurrency, rollback, and retry tests.
+### Frontend
+- Added wallet balances, quote acceptance and settlement lookup using separate HTML, CSS and JavaScript files.
+- Acceptance preserves the quote ID and idempotency key for retries and recovery after page refresh.
+- Prevents repeated submissions while a request is in progress.
+- Displays specific rejection messages, including expired quotes and insufficient funds.
+- Refreshes wallet balances after acceptance attempts.
 
-## Credentials
+### API error handling
+- Standardized error responses with `timestamp`, `status`, `code`, `message` and `path`.
+- Added handling for invalid request fields, malformed JSON and missing headers.
+- Keeps internal exception details out of client responses.
+- Treats network/server failures as uncertain acceptance outcomes and retains the original retry key.
 
-Keep database passwords out of committed files. Use environment variables and never commit STS/Eclipse launch files containing credentials. If a credential was committed or pushed, rotate it; deleting it in a later commit does not remove it from history.
+### Automated tests
+- **22 tests passed, with zero failures, errors or skipped tests.**
+- Includes 12 Oracle integration tests covering rollback, concurrency, idempotency, ownership and financial rejection scenarios.
+- Includes 10 HTTP-layer tests covering controller responses, request validation and structured errors.
+
+### Manual verification
+- Simulated loss of a successful settlement response.
+- Retried using the saved key and received the original settlement ID.
+- Verified exactly one completed settlement, two ledger entries and one completion outbox event.
+- Completed `mvn clean verify` and verified packaged application startup outside STS.
+
+### Reconciliation
+- Added read-only checks in `database/tests/reconciliation.sql`.
+- Checks ledger counts/arithmetic, settlement-to-quote consistency and supporting audit/outbox/idempotency records.
+- A recent settlement passed all six checks.
+- Two historical development settlements remain flagged because they predate audit/outbox or idempotency implementation.
+- Full opening-balance reconciliation remains pending.
+
