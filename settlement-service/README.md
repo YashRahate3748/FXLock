@@ -199,3 +199,8 @@ Automated settlement, rollback, concurrency, and idempotency tests are pending. 
 - Two historical development settlements remain flagged because they predate audit/outbox or idempotency implementation.
 - Full opening-balance reconciliation remains pending.
 
+### Additional safety verification
+- Prevents reuse of a successful idempotency key for another quote.
+- Rejects another customer's source or destination wallet.
+- Returns sanitized HTTP 500 responses without internal exception details.
+- Full Maven verification: 26 tests passed with zero failures, errors or skips.
