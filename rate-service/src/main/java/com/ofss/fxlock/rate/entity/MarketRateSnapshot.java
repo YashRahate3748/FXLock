@@ -28,7 +28,12 @@ public class MarketRateSnapshot {
     @Column(name = "PROVIDER_NAME", nullable = false)
     private String providerName;
 
-    @Column(name = "MARKET_RATE", nullable = false, precision = 20, scale = 10)
+    @Column(
+            name = "MARKET_RATE",
+            nullable = false,
+            precision = 20,
+            scale = 10
+    )
     private BigDecimal marketRate;
 
     @Column(name = "PROVIDER_TIMESTAMP")
@@ -41,10 +46,18 @@ public class MarketRateSnapshot {
     private String validationStatus;
 
     @JdbcTypeCode(SqlTypes.CHAR)
-    @Column(name = "TRUSTED_FLAG", nullable = false, length = 1)
+    @Column(
+            name = "TRUSTED_FLAG",
+            nullable = false,
+            length = 1
+    )
     private String trustedFlag;
 
-    @Column(name = "MOVEMENT_PERCENT")
+    @Column(
+            name = "MOVEMENT_PERCENT",
+            precision = 12,
+            scale = 8
+    )
     private BigDecimal movementPercent;
 
     @Column(name = "VALIDATION_REASON")
@@ -56,12 +69,27 @@ public class MarketRateSnapshot {
     @Column(name = "CREATED_AT", nullable = false)
     private OffsetDateTime createdAt;
 
+    public OffsetDateTime getEffectiveObservationTime() {
+
+        return providerTimestamp != null
+                ? providerTimestamp
+                : receivedAt;
+    }
+
     public boolean isTrusted() {
         return "Y".equalsIgnoreCase(trustedFlag);
     }
 
     public Long getId() {
         return id;
+    }
+
+    public String getCurrencyPair() {
+        return currencyPair;
+    }
+
+    public String getProviderName() {
+        return providerName;
     }
 
     public BigDecimal getMarketRate() {
@@ -80,8 +108,24 @@ public class MarketRateSnapshot {
         return validationStatus;
     }
 
+    public String getTrustedFlag() {
+        return trustedFlag;
+    }
+
     public BigDecimal getMovementPercent() {
         return movementPercent;
+    }
+
+    public String getValidationReason() {
+        return validationReason;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
     }
 
     public void setCurrencyPair(String currencyPair) {
@@ -96,35 +140,51 @@ public class MarketRateSnapshot {
         this.marketRate = marketRate;
     }
 
-    public void setProviderTimestamp(OffsetDateTime providerTimestamp) {
+    public void setProviderTimestamp(
+            OffsetDateTime providerTimestamp
+    ) {
         this.providerTimestamp = providerTimestamp;
     }
 
-    public void setReceivedAt(OffsetDateTime receivedAt) {
+    public void setReceivedAt(
+            OffsetDateTime receivedAt
+    ) {
         this.receivedAt = receivedAt;
     }
 
-    public void setValidationStatus(String validationStatus) {
+    public void setValidationStatus(
+            String validationStatus
+    ) {
         this.validationStatus = validationStatus;
     }
 
-    public void setTrustedFlag(String trustedFlag) {
+    public void setTrustedFlag(
+            String trustedFlag
+    ) {
         this.trustedFlag = trustedFlag;
     }
 
-    public void setMovementPercent(BigDecimal movementPercent) {
+    public void setMovementPercent(
+            BigDecimal movementPercent
+    ) {
         this.movementPercent = movementPercent;
     }
 
-    public void setValidationReason(String validationReason) {
+    public void setValidationReason(
+            String validationReason
+    ) {
         this.validationReason = validationReason;
     }
 
-    public void setCorrelationId(String correlationId) {
+    public void setCorrelationId(
+            String correlationId
+    ) {
         this.correlationId = correlationId;
     }
 
-    public void setCreatedAt(OffsetDateTime createdAt) {
+    public void setCreatedAt(
+            OffsetDateTime createdAt
+    ) {
         this.createdAt = createdAt;
     }
 }

@@ -11,6 +11,8 @@ public record TrustedRateResponse(
 
         BigDecimal marketRate,
 
+        OffsetDateTime observationTime,
+
         OffsetDateTime receivedAt,
 
         long ageSeconds,

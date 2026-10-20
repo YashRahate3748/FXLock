@@ -1,6 +1,7 @@
 package com.ofss.fxlock.rate.dto;
 
 import jakarta.validation.constraints.DecimalMin;
+
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;

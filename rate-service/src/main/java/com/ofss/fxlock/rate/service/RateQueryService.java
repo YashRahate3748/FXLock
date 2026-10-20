@@ -1,16 +1,18 @@
 package com.ofss.fxlock.rate.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+
+import org.springframework.stereotype.Service;
+
 import com.ofss.fxlock.rate.dto.TrustedRateResponse;
 import com.ofss.fxlock.rate.entity.FxConfig;
 import com.ofss.fxlock.rate.entity.MarketRateSnapshot;
 import com.ofss.fxlock.rate.exception.RateUnavailableException;
 import com.ofss.fxlock.rate.repository.FxConfigRepository;
-import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.Duration;
-import java.time.Instant;
 
 @Service
 public class RateQueryService {
@@ -19,16 +21,22 @@ public class RateQueryService {
             new BigDecimal("100");
 
     private final TrustedRateCache cache;
-    private final FxConfigRepository configRepository;
-    private final ProviderStateService providerStateService;
+
+    private final FxConfigRepository
+            configRepository;
+
+    private final ProviderStateService
+            providerStateService;
 
     public RateQueryService(
             TrustedRateCache cache,
             FxConfigRepository configRepository,
             ProviderStateService providerStateService
     ) {
+
         this.cache = cache;
-        this.configRepository = configRepository;
+        this.configRepository =
+                configRepository;
         this.providerStateService =
                 providerStateService;
     }
@@ -37,20 +45,27 @@ public class RateQueryService {
 
         FxConfig config =
                 configRepository
-                        .findByCurrencyPair("EUR/USD")
+                        .findByCurrencyPair(
+                                "EUR/USD"
+                        )
                         .orElseThrow(
-                                () -> new IllegalStateException(
-                                        "EUR/USD configuration missing"
-                                )
+                                () ->
+                                        new IllegalStateException(
+                                                "EUR/USD configuration missing"
+                                        )
                         );
 
         MarketRateSnapshot rate =
                 cache.get()
                         .orElseThrow(
-                                () -> new RateUnavailableException(
-                                        "No trusted rate is available"
-                                )
+                                () ->
+                                        new RateUnavailableException(
+                                                "No trusted rate is available"
+                                        )
                         );
+
+        OffsetDateTime observationTime =
+                rate.getProviderTimestamp();
 
         long ageSeconds =
                 Duration.between(
@@ -58,18 +73,22 @@ public class RateQueryService {
                         Instant.now()
                 ).getSeconds();
 
+        ageSeconds = Math.max(0, ageSeconds);
+
         boolean fresh =
-                ageSeconds >= 0 &&
-                ageSeconds <=
-                    config.getMaxRateAgeSeconds();
+                ageSeconds
+                        <= config
+                                .getMaxRateAgeSeconds();
 
         if (!fresh) {
+
             throw new RateUnavailableException(
                     "Trusted FX rate is stale"
             );
         }
 
         if (!config.isQuotingEnabled()) {
+
             throw new RateUnavailableException(
                     "Quote generation is disabled"
             );
@@ -82,12 +101,14 @@ public class RateQueryService {
                 );
 
         BigDecimal anomalyScore =
-                new BigDecimal("100");
+                HUNDRED;
 
         BigDecimal providerScore =
                 switch (
-                    providerStateService.getHealth()
+                        providerStateService
+                                .getHealth()
                 ) {
+
                     case UP ->
                             new BigDecimal("100");
 
@@ -108,6 +129,7 @@ public class RateQueryService {
                 rate.getId(),
                 "EUR/USD",
                 rate.getMarketRate(),
+                observationTime,
                 rate.getReceivedAt(),
                 ageSeconds,
                 true,
@@ -129,29 +151,41 @@ public class RateQueryService {
     ) {
 
         if (ageSeconds >= maxAge) {
-            return BigDecimal.ZERO;
+
+            return BigDecimal.ZERO
+                    .setScale(
+                            2,
+                            RoundingMode.HALF_UP
+                    );
         }
 
         BigDecimal age =
-                BigDecimal.valueOf(ageSeconds);
+                BigDecimal.valueOf(
+                        ageSeconds
+                );
 
-        BigDecimal max =
-                BigDecimal.valueOf(maxAge);
+        BigDecimal maximum =
+                BigDecimal.valueOf(
+                        maxAge
+                );
 
         return HUNDRED
                 .multiply(
-                    BigDecimal.ONE.subtract(
-                        age.divide(
-                            max,
-                            6,
-                            RoundingMode.HALF_UP
-                        )
-                    )
+                        BigDecimal.ONE
+                                .subtract(
+                                        age.divide(
+                                                maximum,
+                                                6,
+                                                RoundingMode.HALF_UP
+                                        )
+                                )
                 )
-                .max(BigDecimal.ZERO)
+                .max(
+                        BigDecimal.ZERO
+                )
                 .setScale(
-                    2,
-                    RoundingMode.HALF_UP
+                        2,
+                        RoundingMode.HALF_UP
                 );
     }
 
@@ -160,28 +194,58 @@ public class RateQueryService {
             BigDecimal threshold
     ) {
 
-        if (movement == null ||
-            movement.compareTo(BigDecimal.ZERO) <= 0) {
-            return HUNDRED;
+        if (movement == null
+                || movement.compareTo(
+                        BigDecimal.ZERO
+                ) <= 0) {
+
+            return HUNDRED
+                    .setScale(
+                            2,
+                            RoundingMode.HALF_UP
+                    );
         }
 
-        if (movement.compareTo(threshold) >= 0) {
-            return BigDecimal.ZERO;
+        if (threshold == null
+                || threshold.compareTo(
+                        BigDecimal.ZERO
+                ) <= 0) {
+
+            return BigDecimal.ZERO
+                    .setScale(
+                            2,
+                            RoundingMode.HALF_UP
+                    );
+        }
+
+        if (movement.compareTo(
+                threshold
+        ) >= 0) {
+
+            return BigDecimal.ZERO
+                    .setScale(
+                            2,
+                            RoundingMode.HALF_UP
+                    );
         }
 
         return HUNDRED
                 .multiply(
-                    BigDecimal.ONE.subtract(
-                        movement.divide(
-                            threshold,
-                            6,
-                            RoundingMode.HALF_UP
-                        )
-                    )
+                        BigDecimal.ONE
+                                .subtract(
+                                        movement.divide(
+                                                threshold,
+                                                6,
+                                                RoundingMode.HALF_UP
+                                        )
+                                )
+                )
+                .max(
+                        BigDecimal.ZERO
                 )
                 .setScale(
-                    2,
-                    RoundingMode.HALF_UP
+                        2,
+                        RoundingMode.HALF_UP
                 );
     }
 }

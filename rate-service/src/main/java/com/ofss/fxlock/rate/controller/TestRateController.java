@@ -14,7 +14,7 @@ import java.time.Instant;
 
 @RestController
 @RequestMapping("/api/v1/test")
-//@Profile("dev")
+@Profile("dev")
 public class TestRateController {
 
     private final RatePersistenceService ratePersistenceService;

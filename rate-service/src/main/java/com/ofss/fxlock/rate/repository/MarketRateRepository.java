@@ -1,12 +1,16 @@
 package com.ofss.fxlock.rate.repository;
 
-import com.ofss.fxlock.rate.entity.MarketRateSnapshot;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.ofss.fxlock.rate.entity.MarketRateSnapshot;
+
 public interface MarketRateRepository
-        extends JpaRepository<MarketRateSnapshot, Long> {
+        extends JpaRepository<
+                MarketRateSnapshot,
+                Long
+        > {
 
     Optional<MarketRateSnapshot>
     findFirstByCurrencyPairAndTrustedFlagOrderByReceivedAtDesc(

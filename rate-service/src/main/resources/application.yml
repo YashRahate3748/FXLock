@@ -11,13 +11,13 @@ spring:
     password: ${FXLOCK_DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
 
-    jpa:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
       hibernate:
-        ddl-auto: validate
-      open-in-view: false
-      properties:
-        hibernate:
-          format_sql: true
+        format_sql: true
 
   jackson:
     serialization:
@@ -28,6 +28,13 @@ fxlock:
     base-url: https://api.twelvedata.com
     api-key: ${TWELVE_DATA_API_KEY}
     symbol: EUR/USD
+    connect-timeout: 3s
+    read-timeout: 5s
+    rate-limit-backoff: 60s
+
+  rate:
+    scheduler-delay-ms: 15000
+    max-provider-clock-skew-seconds: 30
 
 security:
   service:
@@ -51,4 +58,4 @@ management:
 logging:
   level:
     root: INFO
-    com.fxlock.rate: INFO
+    com.ofss.fxlock.rate: INFO

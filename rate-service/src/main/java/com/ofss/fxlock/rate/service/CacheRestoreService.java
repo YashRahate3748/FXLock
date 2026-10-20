@@ -9,14 +9,19 @@ import jakarta.annotation.PostConstruct;
 @Service
 public class CacheRestoreService {
 
-    private final MarketRateRepository rateRepository;
+    private final MarketRateRepository
+            rateRepository;
+
     private final TrustedRateCache cache;
 
     public CacheRestoreService(
             MarketRateRepository rateRepository,
-            TrustedRateCache cache) {
+            TrustedRateCache cache
+    ) {
 
-        this.rateRepository = rateRepository;
+        this.rateRepository =
+                rateRepository;
+
         this.cache = cache;
     }
 
@@ -28,6 +33,8 @@ public class CacheRestoreService {
                         "EUR/USD",
                         "Y"
                 )
-                .ifPresent(cache::update);
+                .ifPresent(
+                        cache::update
+                );
     }
 }

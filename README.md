@@ -62,8 +62,8 @@ The Rate Service handles:
 - provider response validation
 - trusted in-memory FX-rate cache
 - Oracle rate snapshots
-- 15-second rate refresh
-- 90-second maximum trusted-rate age
+- 15-second provider polling (polling frequency is independent of provider update frequency)
+- 90-second maximum age of the last accepted trusted snapshot
 - provider-health tracking
 - rate-movement calculation
 - anomaly detection
@@ -75,6 +75,11 @@ The Rate Service handles:
 - basic role-based security
 - health endpoint
 - restart-time cache restoration
+- duplicate provider-observation detection
+- out-of-order provider-observation rejection
+- conflicting duplicate detection
+- configurable Twelve Data connect/read timeouts
+- API rate-limit backoff
 - deterministic development-only anomaly testing
 
 The M1 service does **not** own:
@@ -96,7 +101,7 @@ Those belong to other project roles/components.
 Twelve Data
      |
      v
-Fetch EUR/USD every 15 sec
+Poll Twelve Data for EUR/USD every 15 sec
      |
      v
 Validate response
@@ -166,7 +171,7 @@ Example:
 10:00:45 -> fetch
 ```
 
-If the new provider rate passes validation and is not suspicious, it becomes the newest trusted rate.
+If Twelve Data returns a genuinely newer provider observation and it passes validation/anomaly checks, it becomes the newest trusted rate. Repeated responses are not automatically treated as fresh data.
 
 ### 90 seconds — maximum trusted-rate age
 
@@ -181,6 +186,23 @@ This mainly protects the application during:
 - suspicious provider rates
 
 The 90-second value is a maximum fallback age. It is **not** the normal refresh interval.
+
+### Polling frequency vs provider update frequency
+
+FXLock polls Twelve Data approximately every 15 seconds, but Twelve Data may return the same latest market observation more than once. Therefore:
+
+```text
+poll frequency != provider update frequency
+```
+
+The service evaluates the provider timestamp before accepting a response as new market data.
+
+- same provider timestamp + same rate -> `DUPLICATE`, ignored
+- older provider timestamp -> `OUT_OF_ORDER`, rejected
+- same provider timestamp + different rate -> `CONFLICTING_DUPLICATE`, rejected
+- newer provider timestamp -> continue with validation/anomaly checks
+
+Duplicate or old observations do **not** replace the trusted cache and do **not** reset the freshness clock.
 
 ### 60 seconds — quote validity
 
@@ -198,7 +220,24 @@ Settlement uses the stored quote rate, not a newly fetched market rate.
 
 ---
 
-# 4. Business Spread
+# 4. Timestamp Semantics
+
+The Rate Service stores two timestamps for market observations:
+
+```text
+PROVIDER_TIMESTAMP
+RECEIVED_AT
+```
+
+`PROVIDER_TIMESTAMP` is the observation time reported by Twelve Data. It is used for duplicate detection, out-of-order detection, and observation ordering.
+
+`RECEIVED_AT` is when FXLock accepted the observation. The 90-second freshness calculation uses the `RECEIVED_AT` value of the **last accepted trusted snapshot**. Because duplicate/out-of-order responses never replace that snapshot, repeated stale provider data cannot keep the trusted cache fresh indefinitely.
+
+Backend timestamps are stored in UTC/GMT (`Z` / `+00:00`). This avoids timezone ambiguity between machines and services. UI clients can convert timestamps to local time for display.
+
+---
+
+# 5. Business Spread
 
 Current training setting:
 
@@ -228,7 +267,7 @@ The Rate Service stores market data and configuration, while the Quote Service a
 
 ---
 
-# 5. Transaction Limits
+# 6. Transaction Limits
 
 Current training values:
 
@@ -252,7 +291,7 @@ The Quote Service is responsible for enforcing transaction amount limits during 
 
 ---
 
-# 6. Anomaly Detection
+# 7. Anomaly Detection
 
 Current training threshold:
 
@@ -313,7 +352,7 @@ The previous trusted cache remains unchanged while it is still fresh.
 
 ---
 
-# 7. First Trusted Baseline
+# 8. First Trusted Baseline
 
 If the application has no previous trusted rate, the first valid real provider rate becomes the initial trusted baseline.
 
@@ -321,7 +360,7 @@ Do **not** keep a hard-coded development seed market rate in the normal runtime 
 
 ---
 
-# 8. Project Structure
+# 9. Project Structure
 
 ```text
 rate-service/
@@ -407,7 +446,7 @@ rate-service/
 
 ---
 
-# 9. Maven / Java Baseline
+# 10. Maven / Java Baseline
 
 The project is standardized on:
 
@@ -431,7 +470,7 @@ Important dependencies:
 
 ---
 
-# 10. Required Environment Variables
+# 11. Required Environment Variables
 
 The following values must be configured locally.
 
@@ -468,7 +507,7 @@ Do not commit:
 
 ---
 
-# 11. STS Environment Setup
+# 12. STS Environment Setup
 
 In Spring Tool Suite:
 
@@ -494,7 +533,7 @@ Remove it after anomaly testing is complete.
 
 ---
 
-# 12. Oracle Database
+# 13. Oracle Database
 
 The Rate Service primarily uses these tables:
 
@@ -512,7 +551,7 @@ The in-memory trusted-rate cache is only an optimization for fast access.
 
 ---
 
-# 13. `FX_CONFIG`
+# 14. `FX_CONFIG`
 
 Contains configuration such as:
 
@@ -527,7 +566,7 @@ Contains configuration such as:
 
 ---
 
-# 14. `MARKET_RATE_SNAPSHOT`
+# 15. `MARKET_RATE_SNAPSHOT`
 
 Stores every relevant provider observation.
 
@@ -556,7 +595,7 @@ INVALID
 
 ---
 
-# 15. `RATE_ANOMALY`
+# 16. `RATE_ANOMALY`
 
 Stores suspicious-rate review information.
 
@@ -586,7 +625,7 @@ REJECTED
 
 ---
 
-# 16. `AUDIT_EVENT`
+# 17. `AUDIT_EVENT`
 
 Stores operational/audit events such as:
 
@@ -598,11 +637,13 @@ RATE_ANOMALY_REJECTED
 PROVIDER_UNAVAILABLE
 QUOTING_ENABLED
 QUOTING_DISABLED
+RATE_OBSERVATION_DUPLICATE
+RATE_OBSERVATION_REJECTED
 ```
 
 ---
 
-# 17. `OUTBOX_EVENT`
+# 18. `OUTBOX_EVENT`
 
 Stores events that are intended for Kafka publication.
 
@@ -633,7 +674,7 @@ M4 can later publish them to Kafka.
 
 ---
 
-# 18. Trusted In-Memory Cache
+# 19. Trusted In-Memory Cache
 
 The service keeps the latest trusted rate in memory.
 
@@ -652,7 +693,7 @@ Restarting the application must not make an old market rate fresh again.
 
 ---
 
-# 19. Provider Failure Behavior
+# 20. Provider Failure Behavior
 
 If Twelve Data becomes unavailable:
 
@@ -682,7 +723,7 @@ A provider outage does not immediately invalidate an already fresh cached rate.
 
 ---
 
-# 20. Security
+# 21. Security
 
 The current training implementation uses HTTP Basic authentication.
 
@@ -722,7 +763,7 @@ The test endpoint is restricted to development mode and should be protected with
 
 ---
 
-# 21. API Endpoints
+# 22. API Endpoints
 
 ## 21.1 Health Check
 
@@ -765,6 +806,7 @@ Example response:
   "snapshotId": 520,
   "currencyPair": "EUR/USD",
   "marketRate": 1.12544,
+  "observationTime": "2026-10-16T09:19:00Z",
   "receivedAt": "2026-10-16T09:19:52Z",
   "ageSeconds": 5,
   "fresh": true,
@@ -909,7 +951,7 @@ Body:
 
 ---
 
-# 22. Development-Only Fake Rate Injection
+# 23. Development-Only Fake Rate Injection
 
 This endpoint exists only for deterministic anomaly testing.
 
@@ -977,7 +1019,7 @@ from the normal runtime configuration.
 
 ---
 
-# 23. Safe Local Test Reset
+# 24. Safe Local Test Reset
 
 For local development only, rate-test data can be cleaned with:
 
@@ -995,7 +1037,7 @@ Do not use this kind of cleanup in a shared integration/demo database if history
 
 ---
 
-# 24. Normal Rate Test
+# 25. Normal Rate Test
 
 Run:
 
@@ -1026,7 +1068,7 @@ Rows should generally appear approximately every 15 seconds while the provider i
 
 ---
 
-# 25. Anomaly Test Procedure
+# 26. Anomaly Test Procedure
 
 1. Start application normally.
 2. Confirm a real Twelve Data rate is `TRUSTED`.
@@ -1046,7 +1088,52 @@ Rows should generally appear approximately every 15 seconds while the provider i
 
 ---
 
-# 26. Stale Rate Test
+# 27. Duplicate and Out-of-Order Observation Tests
+
+The provider may return the same observation repeatedly even though FXLock polls every 15 seconds. This is expected.
+
+### Duplicate observation
+
+If the provider returns the same `PROVIDER_TIMESTAMP` and same rate as the current trusted observation:
+
+```text
+DUPLICATE -> IGNORED
+```
+
+Expected behavior:
+
+- trusted cache is unchanged
+- trusted snapshot `RECEIVED_AT` is unchanged
+- freshness age continues increasing
+- audit contains `RATE_OBSERVATION_DUPLICATE`
+
+### Out-of-order observation
+
+If the provider returns an older `PROVIDER_TIMESTAMP` than the current trusted observation:
+
+```text
+OUT_OF_ORDER -> INVALID / rejected
+```
+
+Expected behavior:
+
+- trusted cache is unchanged
+- snapshot is not trusted
+- audit contains `RATE_OBSERVATION_REJECTED`
+
+### Conflicting duplicate
+
+If the provider returns the same provider timestamp but a different rate:
+
+```text
+CONFLICTING_DUPLICATE -> INVALID / rejected
+```
+
+This protects FXLock from inconsistent provider data.
+
+---
+
+# 28. Stale Rate Test
 
 The normal scheduler can refresh the rate before it becomes stale, so for this test temporarily slow/disable provider fetching.
 
@@ -1087,7 +1174,7 @@ fxlock.rate.scheduler-delay-ms=15000
 
 ---
 
-# 27. Restart / Cache Restore Test
+# 29. Restart / Cache Restore Test
 
 To clearly observe cache restoration:
 
@@ -1110,7 +1197,7 @@ This confirms that `CacheRestoreService` restores the existing trusted rate rath
 
 ---
 
-# 28. Security Tests
+# 30. Security Tests
 
 ## No authentication
 
@@ -1164,7 +1251,7 @@ depending on the endpoint.
 
 ---
 
-# 29. Verification SQL
+# 31. Verification SQL
 
 ## Latest trusted/suspicious rates
 
@@ -1232,7 +1319,7 @@ ORDER BY CREATED_AT DESC;
 
 ---
 
-# 30. Integration Contract for Quote Service
+# 32. Integration Contract for Quote Service
 
 The main M1 -> M2 integration endpoint is:
 
@@ -1264,7 +1351,7 @@ M2 should not create a new quote.
 
 ---
 
-# 31. Integration Notes for M2
+# 33. Integration Notes for M2
 
 M2 should use these response fields:
 
@@ -1272,6 +1359,7 @@ M2 should use these response fields:
 snapshotId
 currencyPair
 marketRate
+observationTime
 receivedAt
 ageSeconds
 fresh
@@ -1288,7 +1376,7 @@ The exact market rate used for quote creation should be persisted in the quote s
 
 ---
 
-# 32. Integration Notes for M4
+# 34. Integration Notes for M4
 
 M1 creates outbox events such as:
 
@@ -1317,7 +1405,7 @@ The Rate Service should not depend on Kafka availability for storing valid marke
 
 ---
 
-# 33. Application Configuration
+# 35. Application Configuration
 
 Typical `application.yml` structure:
 
@@ -1348,7 +1436,7 @@ Secrets should remain environment variables.
 
 ---
 
-# 34. Build and Run
+# 36. Build and Run
 
 From the service folder:
 
@@ -1367,7 +1455,7 @@ Started RateServiceApplication
 
 ---
 
-# 35. Build Verification
+# 37. Build Verification
 
 Before pushing changes:
 
@@ -1395,7 +1483,7 @@ BUILD SUCCESS
 
 ---
 
-# 36. Git Branch
+# 38. Git Branch
 
 M1 development branch:
 
@@ -1420,7 +1508,7 @@ final main branch
 
 ---
 
-# 37. Git Safety Checklist
+# 39. Git Safety Checklist
 
 Before pushing:
 
@@ -1452,7 +1540,7 @@ Real secret values must not be committed.
 
 ---
 
-# 38. Recommended `.gitignore`
+# 40. Recommended `.gitignore`
 
 ```gitignore
 target/
@@ -1471,17 +1559,17 @@ application-local.properties
 
 ---
 
-# 39. Suggested Commit
+# 41. Suggested Commit
 
 ```bash
 git add rate-service
-git commit -m "feat(rate): implement FXLock rate and risk service"
+git commit -m "feat(rate): harden market data validation and freshness handling"
 git push -u origin feature-rate-service
 ```
 
 ---
 
-# 40. Suggested Pull Request Title
+# 42. Suggested Pull Request Title
 
 ```text
 M1: Implement FXLock Rate and Risk Service
@@ -1509,7 +1597,7 @@ Implements the M1 backend for FXLock:
 
 ---
 
-# 41. Completed M1 Test Checklist
+# 43. Completed M1 Test Checklist
 
 The following scenarios should be verified before integration:
 
@@ -1536,7 +1624,17 @@ The following scenarios should be verified before integration:
 
 [ ] Twelve Data EUR/USD request works
 
-[ ] scheduler fetches approximately every 15 seconds
+[ ] scheduler polls approximately every 15 seconds
+
+[ ] duplicate provider observations do not refresh trusted cache age
+
+[ ] out-of-order provider observations are rejected
+
+[ ] conflicting duplicate observations are rejected
+
+[ ] configurable connect/read timeouts are active
+
+[ ] HTTP 429 backoff behavior is configured
 
 [ ] valid live rate becomes TRUSTED
 
@@ -1583,7 +1681,7 @@ The following scenarios should be verified before integration:
 
 ---
 
-# 42. Important Design Rules
+# 44. Important Design Rules
 
 1. Quote Service must not call Twelve Data directly.
 2. Suspicious rates must not automatically replace the trusted rate.
@@ -1595,10 +1693,13 @@ The following scenarios should be verified before integration:
 8. Test-only endpoints must not be enabled accidentally in the normal integrated runtime.
 9. Oracle remains the durable source of truth.
 10. M1 creates outbox events; M4 owns Kafka publication.
+11. Provider polling frequency must not be confused with provider update frequency.
+12. Duplicate and out-of-order provider observations must never refresh the trusted cache age.
+13. Backend timestamps remain UTC/GMT; UI may convert them for display.
 
 ---
 
-# 43. Owner
+# 45. Owner
 
 ```text
 M1 - Yash
@@ -1607,7 +1708,7 @@ FXLock Rate Service
 
 ---
 
-# 44. Current Integration Status
+# 46. Current Integration Status
 
 At the end of M1 implementation, the expected integration point is:
 
@@ -1631,9 +1732,11 @@ Rate Service
 
 Once M2 can successfully consume the trusted-rate response and create a quote from it, the M1 -> M2 integration contract is considered validated.
 
+Eureka/service-discovery integration is intentionally pending until the team member responsible for the shared discovery setup publishes the agreed configuration/dependency baseline.
+
 ---
 
-# 45. Summary
+# 47. Summary
 
 The FXLock Rate Service is responsible for making sure the rest of the application never depends directly on an unsafe or stale external FX rate.
 
