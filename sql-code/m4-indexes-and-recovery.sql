@@ -1,0 +1,22 @@
+-- Run only after the shared 01_fxlock_schema.sql has created M4 tables.
+-- Helps the polling worker find pending records efficiently.
+CREATE INDEX IDX_OUTBOX_PENDING ON OUTBOX_EVENT (STATUS, CREATED_AT);
+CREATE INDEX IDX_AUDIT_CREATED ON AUDIT_EVENT (CREATED_AT);
+
+-- Recovery after a hard crash while records were PROCESSING.
+-- Run only when the previous worker instance is confirmed stopped.
+UPDATE OUTBOX_EVENT
+   SET STATUS='PENDING',
+       LAST_ERROR='Recovered PROCESSING event after service restart'
+ WHERE STATUS='PROCESSING';
+COMMIT;
+
+-- Operational checks
+SELECT STATUS, COUNT(*) AS EVENT_COUNT
+  FROM OUTBOX_EVENT GROUP BY STATUS ORDER BY STATUS;
+
+SELECT EVENT_ID, TOPIC_NAME, EVENT_TYPE, STATUS, RETRY_COUNT, LAST_ERROR, CREATED_AT
+  FROM OUTBOX_EVENT ORDER BY CREATED_AT DESC FETCH FIRST 50 ROWS ONLY;
+
+SELECT CONSUMER_NAME, COUNT(*) AS PROCESSED_COUNT
+  FROM PROCESSED_EVENT GROUP BY CONSUMER_NAME;
