@@ -1275,42 +1275,6 @@ SELECT
 FROM CUSTOMER
 WHERE CUSTOMER_REF = 'CUST003';
 
-
-/* ============================================================
-   18. OPTIONAL INITIAL TRUSTED RATE
-   Useful when Rate Service is not running yet.
-
-   IMPORTANT:
-   This is only local development seed data.
-   M1's real service should replace this with Twelve Data rates.
-   ============================================================ */
-
-INSERT INTO MARKET_RATE_SNAPSHOT
-(
-    CURRENCY_PAIR,
-    PROVIDER_NAME,
-    MARKET_RATE,
-    PROVIDER_TIMESTAMP,
-    RECEIVED_AT,
-    VALIDATION_STATUS,
-    TRUSTED_FLAG,
-    MOVEMENT_PERCENT,
-    VALIDATION_REASON
-)
-VALUES
-(
-    'EUR/USD',
-    'DEV_SEED',
-    1.170000,
-    SYSTIMESTAMP,
-    SYSTIMESTAMP,
-    'TRUSTED',
-    'Y',
-    0,
-    'Initial local development rate'
-);
-
-
 /* ============================================================
    19. INITIAL AUDIT ENTRY
    ============================================================ */
