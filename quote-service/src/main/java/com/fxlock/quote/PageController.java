@@ -12,7 +12,12 @@ public class PageController {
     private final DatabaseConfig config;
     public PageController(Environment environment,DatabaseConfig config) { this.environment=environment; this.config=config; }
     @GetMapping("/") String home(Model model,Principal principal) {
-        model.addAttribute("demo",environment.acceptsProfiles(Profiles.of("demo","oracle-local")));
+    	model.addAttribute(
+    		    "demo",
+    		    environment.acceptsProfiles(
+    		        Profiles.of("demo")
+    		    )
+    		);
         model.addAttribute("customer",principal.getName());
         var settings=config.current();
         model.addAttribute("minAmount",settings.minAmount()); model.addAttribute("maxAmount",settings.maxAmount());

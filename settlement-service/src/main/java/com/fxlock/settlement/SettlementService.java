@@ -148,8 +148,17 @@ public class SettlementService {
                 first.walletId().equals(quote.targetWalletId())
                         ? first : second;
 
-        validateWallet(source, customerId, quote.sourceCurrency());
-        validateWallet(target, customerId, quote.targetCurrency());
+        validateSourceWallet(
+                source,
+                customerId,
+                quote.sourceCurrency()
+        );
+
+        validateBeneficiaryWallet(
+                target,
+                customerId,
+                quote.targetCurrency()
+        );
 
         if (quote.sourceCurrency().equals(quote.targetCurrency())) {
             throw new ResponseStatusException(
@@ -285,33 +294,75 @@ public class SettlementService {
                 ));
     }
 
-    private void validateWallet(
+    private void validateSourceWallet(
             LockedWallet wallet,
-            Long customerId,
+            Long senderCustomerId,
             String expectedCurrency
     ) {
-        if (!customerId.equals(wallet.customerId())) {
+
+        if (!senderCustomerId.equals(
+                wallet.customerId()
+        )) {
+
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "WALLET_NOT_OWNED"
+                    "SOURCE_WALLET_NOT_OWNED"
             );
         }
 
-        if (!"ACTIVE".equals(wallet.status())) {
+        validateWalletStateAndCurrency(
+                wallet,
+                expectedCurrency
+        );
+    }
+
+    private void validateBeneficiaryWallet(
+            LockedWallet wallet,
+            Long senderCustomerId,
+            String expectedCurrency
+    ) {
+
+        validateWalletStateAndCurrency(
+                wallet,
+                expectedCurrency
+        );
+    }
+
+    private void validateWalletStateAndCurrency(
+            LockedWallet wallet,
+            String expectedCurrency
+    ) {
+
+        if (!"ACTIVE".equals(
+                wallet.customerStatus()
+        )) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "CUSTOMER_NOT_ACTIVE"
+            );
+        }
+
+        if (!"ACTIVE".equals(
+                wallet.status()
+        )) {
+
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "WALLET_NOT_ACTIVE"
             );
         }
 
-        if (!expectedCurrency.equals(wallet.currencyCode())) {
+        if (!expectedCurrency.equals(
+                wallet.currencyCode()
+        )) {
+
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "WALLET_CURRENCY_MISMATCH"
             );
         }
     }
-
     private void requireOneRow(int affectedRows, String operation) {
         if (affectedRows != 1) {
             throw new IllegalStateException(
