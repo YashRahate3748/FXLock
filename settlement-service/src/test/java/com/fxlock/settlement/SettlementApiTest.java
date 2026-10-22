@@ -198,6 +198,39 @@ class SettlementApiTest {
                             "Your source wallet has insufficient funds."
                         ));
     }
+    
+    @Test
+    void unexpectedErrorReturnsSafeInternalErrorResponse() throws Exception {
+        String internalDetail = "TEST_INTERNAL_DETAIL_DO_NOT_EXPOSE";
+
+        when(coordinator.settle(QUOTE_ID, "CUST001", KEY))
+                .thenThrow(new IllegalStateException(internalDetail));
+
+        mvc.perform(post(URL)
+                        .header("Idempotency-Key", KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validBody()))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value(
+                        "The request could not be confirmed. " +
+                        "For acceptance, retry using the original key."
+                ))
+                .andExpect(jsonPath("$.path").value(URL))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty())
+                .andExpect(jsonPath("$.trace").doesNotExist())
+                .andExpect(jsonPath("$.exception").doesNotExist())
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.not(
+                                org.hamcrest.Matchers.containsString(
+                                        internalDetail
+                                )
+                        )
+                ));
+
+        verify(coordinator).settle(QUOTE_ID, "CUST001", KEY);
+    }
 
     @Test
     void unknownSettlementReturnsStructuredNotFound() throws Exception {

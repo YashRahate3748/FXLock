@@ -5,6 +5,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -1574,8 +1577,13 @@ class SettlementRollbackTest {
                 )
         );
 
-        int expectedStatus =
-                "QUOTE_NOT_OWNED".equals(expectedReason) ? 403 : 409;
+        int expectedStatus = switch (expectedReason) {
+        case "QUOTE_NOT_OWNED",
+             "WALLET_NOT_OWNED",
+             "CUSTOMER_NOT_ACTIVE" -> 403;
+
+        default -> 409;
+        };
 
         assertEquals(
                 expectedStatus,
@@ -1756,5 +1764,298 @@ class SettlementRollbackTest {
                     otherCustomerRef
             );
         }
+    }
+    
+    @ParameterizedTest(name = "Reject another customer's {0} wallet")
+    @ValueSource(strings = {"EUR", "USD"})
+    void foreignWalletCannotBeUsedForSettlement(String currency) {
+        String foreignCustomerRef =
+                "FOREIGN-" + UUID.randomUUID();
+
+        try {
+            jdbc.update(
+                    """
+                    INSERT INTO customer (customer_ref, full_name)
+                    VALUES (?, ?)
+                    """,
+                    foreignCustomerRef,
+                    "Foreign Wallet Test Customer"
+            );
+
+            Long foreignCustomerId = jdbc.queryForObject(
+                    """
+                    SELECT customer_id
+                    FROM customer
+                    WHERE customer_ref = ?
+                    """,
+                    Long.class,
+                    foreignCustomerRef
+            );
+
+            jdbc.update(
+                    """
+                    INSERT INTO wallet (
+                        customer_id,
+                        currency_code,
+                        balance
+                    )
+                    VALUES (?, ?, 2500)
+                    """,
+                    foreignCustomerId,
+                    currency
+            );
+
+            Long foreignWalletId = jdbc.queryForObject(
+                    """
+                    SELECT wallet_id
+                    FROM wallet
+                    WHERE customer_id = ?
+                      AND currency_code = ?
+                    """,
+                    Long.class,
+                    foreignCustomerId,
+                    currency
+            );
+
+            // Keep the quote owner unchanged, but reference a foreign wallet.
+            if ("EUR".equals(currency)) {
+                jdbc.update(
+                        """
+                        UPDATE fx_quote
+                        SET source_wallet_id = ?
+                        WHERE quote_id = ?
+                        """,
+                        foreignWalletId,
+                        quoteId
+                );
+            } else {
+                jdbc.update(
+                        """
+                        UPDATE fx_quote
+                        SET target_wallet_id = ?
+                        WHERE quote_id = ?
+                        """,
+                        foreignWalletId,
+                        quoteId
+                );
+            }
+
+            assertRejectedWithoutFinancialChanges(
+                    "WALLET_NOT_OWNED"
+            );
+
+            // The foreign wallet must also remain untouched.
+            assertMoney("2500", balance(foreignWalletId));
+
+            assertEquals(
+                    0,
+                    count(
+                            """
+                            SELECT COUNT(*) FROM wallet_ledger
+                            WHERE wallet_id = ?
+                            """,
+                            foreignWalletId
+                    )
+            );
+
+        } finally {
+            // Restore references before deleting the foreign wallet.
+            jdbc.update(
+                    """
+                    UPDATE fx_quote
+                    SET source_wallet_id = ?,
+                        target_wallet_id = ?
+                    WHERE quote_id = ?
+                    """,
+                    sourceWalletId,
+                    targetWalletId,
+                    quoteId
+            );
+
+            jdbc.update(
+                    """
+                    DELETE FROM wallet
+                    WHERE customer_id IN (
+                        SELECT customer_id
+                        FROM customer
+                        WHERE customer_ref = ?
+                    )
+                    """,
+                    foreignCustomerRef
+            );
+
+            jdbc.update(
+                    "DELETE FROM customer WHERE customer_ref = ?",
+                    foreignCustomerRef
+            );
+        }
+    }
+    
+    @Test
+    void successfulKeyCannotBeReusedForAnotherQuote() {
+        // Create a second quote using this test's customer and wallets.
+        int inserted = jdbc.update(
+                """
+                INSERT INTO fx_quote (
+                    quote_id,
+                    customer_id,
+                    source_wallet_id,
+                    target_wallet_id,
+                    rate_snapshot_id,
+                    source_currency,
+                    target_currency,
+                    source_amount,
+                    market_rate,
+                    customer_rate,
+                    applied_spread_bps,
+                    target_amount,
+                    status,
+                    created_at,
+                    expires_at,
+                    correlation_id
+                )
+                SELECT
+                    ?,
+                    customer_id,
+                    source_wallet_id,
+                    target_wallet_id,
+                    rate_snapshot_id,
+                    source_currency,
+                    target_currency,
+                    source_amount,
+                    market_rate,
+                    customer_rate,
+                    applied_spread_bps,
+                    target_amount,
+                    'OPEN',
+                    SYSTIMESTAMP,
+                    SYSTIMESTAMP + INTERVAL '60' SECOND,
+                    correlation_id
+                FROM fx_quote
+                WHERE quote_id = ?
+                """,
+                competingQuoteId,
+                quoteId
+        );
+
+        assertEquals(1, inserted);
+
+        // First acceptance commits successfully.
+        SettlementResponse completed = coordinator.settle(
+                quoteId,
+                customerRef,
+                idempotencyKey
+        );
+
+        assertEquals("COMPLETED", completed.status());
+
+        // Same key, different quote must be rejected.
+        ResponseStatusException rejection = assertThrows(
+                ResponseStatusException.class,
+                () -> coordinator.settle(
+                        competingQuoteId,
+                        customerRef,
+                        idempotencyKey
+                )
+        );
+
+        assertEquals(409, rejection.getStatusCode().value());
+        assertEquals("IDEMPOTENCY_CONFLICT", rejection.getReason());
+
+        // Only the first conversion affected the wallets.
+        assertMoney("4900", balance(sourceWalletId));
+        assertMoney("1109.78", balance(targetWalletId));
+
+        assertEquals(
+                1,
+                count(
+                        """
+                        SELECT COUNT(*) FROM settlement
+                        WHERE quote_id IN (?, ?)
+                          AND status = 'COMPLETED'
+                        """,
+                        quoteId,
+                        competingQuoteId
+                )
+        );
+
+        assertEquals(
+                0,
+                count(
+                        """
+                        SELECT COUNT(*) FROM settlement
+                        WHERE quote_id = ?
+                        """,
+                        competingQuoteId
+                )
+        );
+
+        assertEquals(
+                "OPEN",
+                jdbc.queryForObject(
+                        "SELECT status FROM fx_quote WHERE quote_id = ?",
+                        String.class,
+                        competingQuoteId
+                )
+        );
+
+        assertEquals(
+                2,
+                count(
+                        """
+                        SELECT COUNT(*) FROM wallet_ledger
+                        WHERE wallet_id IN (?, ?)
+                        """,
+                        sourceWalletId,
+                        targetWalletId
+                )
+        );
+
+        // The original saved result must remain intact.
+        assertEquals(
+                1,
+                count(
+                        """
+                        SELECT COUNT(*) FROM idempotency_record
+                        WHERE idempotency_key = ?
+                          AND quote_id = ?
+                          AND settlement_id = ?
+                          AND response_status = 'COMPLETED'
+                        """,
+                        idempotencyKey,
+                        quoteId,
+                        completed.settlementId()
+                )
+        );
+
+        String auditedReason = jdbc.queryForObject(
+                """
+                SELECT JSON_VALUE(details, '$.reasonCode')
+                FROM audit_event
+                WHERE entity_type = 'QUOTE'
+                  AND entity_id = ?
+                  AND event_type = 'SETTLEMENT_ATTEMPT_REJECTED'
+                  AND event_status = 'REJECTED'
+                """,
+                String.class,
+                competingQuoteId
+        );
+
+        assertEquals("IDEMPOTENCY_CONFLICT", auditedReason);
+
+        // Rejection must not damage replay of the original request.
+        SettlementResponse replay = coordinator.settle(
+                quoteId,
+                customerRef,
+                idempotencyKey
+        );
+
+        assertEquals(
+                completed.settlementId(),
+                replay.settlementId()
+        );
+
+        assertMoney("4900", balance(sourceWalletId));
+        assertMoney("1109.78", balance(targetWalletId));
     }
 }

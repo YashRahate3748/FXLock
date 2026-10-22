@@ -1,0 +1,70 @@
+server:
+  port: ${PORT:8082}
+spring:
+  application:
+    name: quote-service
+  profiles:
+    default: demo
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  sql:
+    init:
+      mode: never
+fxlock:
+  demo-password: ${DEMO_PASSWORD:learn-fxlock}
+  rate-base-url: ${RATE_BASE_URL:}
+  settlement-base-url: ${SETTLEMENT_BASE_URL:}
+  rate-username: ${FXLOCK_SERVICE_USERNAME:fxlock-service}
+  rate-password: ${FXLOCK_SERVICE_PASSWORD:}
+eureka:
+  client:
+    enabled: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+---
+spring:
+  config:
+    activate:
+      on-profile: demo
+  datasource:
+    url: jdbc:h2:mem:fxlock-demo;MODE=Oracle;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ''
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/demo-schema.sql
+---
+spring:
+  config:
+    activate:
+      on-profile: team
+  datasource:
+    url: ${ORACLE_JDBC_URL}
+    username: ${ORACLE_USERNAME}
+    password: ${ORACLE_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+eureka:
+  client:
+    enabled: false
+---
+# Run oracle-local alone: exact common schema; real stored snapshots, no timestamp refresh.
+spring:
+  config:
+    activate:
+      on-profile: oracle-local
+  datasource:
+    url: ${ORACLE_JDBC_URL:jdbc:oracle:thin:@//localhost:1521/freepdb1}
+    username: ${ORACLE_USERNAME:FXLOCK}
+    password: ${ORACLE_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+  sql:
+    init:
+      mode: never
+eureka:
+  client:
+    enabled: false

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FXLock | Settlement details</title>
+    <link rel="stylesheet" href="/css/settlement.css">
+    <script src="/js/settlement.js" defer></script>
+</head>
+<body>
+<header class="site-header">
+    <a class="brand" href="/wallets.html">FXLock</a>
+    <a href="/wallets.html">View wallets</a>
+</header>
+
+<main>
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">Financial receipt</p>
+            <h1>Settlement details</h1>
+            <p>Review the conversion, locked pricing and wallet movements.</p>
+        </div>
+        <button id="refreshButton" type="button" disabled>
+            Refresh details
+        </button>
+    </div>
+
+    <form id="lookupForm" class="panel lookup">
+        <label for="settlementId">Settlement ID</label>
+        <div class="lookup-controls">
+            <input id="settlementId" name="settlementId"
+                   maxlength="36" required autocomplete="off"
+                   placeholder="Enter a settlement ID">
+            <button type="submit">Find settlement</button>
+        </div>
+    </form>
+
+    <p id="message" role="status" aria-live="polite"></p>
+
+    <div id="receipt" hidden>
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Conversion summary</h2>
+                <span id="status" class="badge"></span>
+            </div>
+
+            <div class="amount-grid">
+                <div class="amount-card">
+                    <p>Amount debited</p>
+                    <strong id="sourceAmount"></strong>
+                </div>
+                <div class="amount-card">
+                    <p>Amount credited</p>
+                    <strong id="targetAmount"></strong>
+                </div>
+            </div>
+
+            <dl class="detail-grid">
+                <div>
+                    <dt>Settlement ID</dt>
+                    <dd id="receiptSettlementId" class="identifier"></dd>
+                </div>
+                <div>
+                    <dt>Quote ID</dt>
+                    <dd id="quoteId" class="identifier"></dd>
+                </div>
+                <div>
+                    <dt>Completed at</dt>
+                    <dd id="completedAt"></dd>
+                </div>
+            </dl>
+        </section>
+
+        <section class="panel">
+            <h2>Locked quote pricing</h2>
+            <p class="note">
+                These rates belong to the original quote.
+                They are historical values, not a live market feed.
+            </p>
+
+            <dl class="detail-grid">
+                <div>
+                    <dt>Currency direction</dt>
+                    <dd id="currencyPair"></dd>
+                </div>
+                <div>
+                    <dt>Market rate when quoted</dt>
+                    <dd id="marketRate"></dd>
+                </div>
+                <div>
+                    <dt>Locked customer rate</dt>
+                    <dd id="customerRate"></dd>
+                </div>
+                <div>
+                    <dt>Applied spread</dt>
+                    <dd id="spread"></dd>
+                </div>
+                <div>
+                    <dt>Quote created at</dt>
+                    <dd id="quoteCreatedAt"></dd>
+                </div>
+                <div>
+                    <dt>Quote expired at</dt>
+                    <dd id="quoteExpiresAt"></dd>
+                </div>
+            </dl>
+
+            <p class="note">
+                The spread is included in the locked customer rate.
+                The recorded credited amount is the settlement result.
+            </p>
+        </section>
+
+        <section class="panel">
+            <h2>Current wallet balances</h2>
+
+            <div class="amount-grid">
+                <div class="amount-card">
+                    <p id="sourceWalletLabel">Source wallet</p>
+                    <strong id="sourceWalletBalance"></strong>
+                </div>
+
+                <div class="amount-card">
+                    <p id="targetWalletLabel">Target wallet</p>
+                    <strong id="targetWalletBalance"></strong>
+                 </div>
+            </div>
+
+            <p class="note">
+                Balances reflect the latest details refresh and may include
+                transactions completed after this settlement.
+            </p>
+        </section>
+
+        <section class="panel">
+            <h2>Wallet ledger</h2>
+            <p class="note">
+                Before and after balances describe this settlement.
+                Current balances may include later wallet activity.
+            </p>
+
+            <div class="table-container">
+                <table>
+                    <caption class="sr-only">
+                        Recorded wallet movements for this settlement
+                    </caption>
+                    <thead>
+                    <tr>
+                        <th scope="col">Entry</th>
+                        <th scope="col">Wallet</th>
+                        <th scope="col">Amount</th>
+                        <th scope="col">Before</th>
+                        <th scope="col">After</th>
+                        <th scope="col">Current balance</th>
+                        <th scope="col">Recorded at</th>
+                    </tr>
+                    </thead>
+                    <tbody id="ledgerRows"></tbody>
+                </table>
+            </div>
+            <p id="ledgerMessage" class="note"></p>
+        </section>
+    </div>
+</main>
+</body>
+</html>

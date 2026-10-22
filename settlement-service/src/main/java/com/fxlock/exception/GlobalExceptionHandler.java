@@ -81,6 +81,12 @@ public class GlobalExceptionHandler {
 
             case "SETTLEMENT_NOT_FOUND" ->
                     "Settlement not found for the current customer.";
+                    
+            case "INVALID_INTERNAL_TOKEN" ->
+            "Internal service authentication failed.";
+
+            case "INVALID_CUSTOMER_REFERENCE" ->
+                  "A valid customer reference is required.";
 
             default -> "The request could not be completed.";
         };
