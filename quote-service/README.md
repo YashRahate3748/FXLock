@@ -37,8 +37,9 @@ identity system. Wallet IDs come from the database; never use `demo-eur` or
 **Oracle local mode reads actual stored trusted observations.** The initial
 `DEV_SEED` observation becomes stale after the configured age. It is not silently
 refreshed. Run M1 for ongoing rates, or manually add a clearly labelled local
-fixture using `sql/local-development-rate.sql` when testing. M3 acceptance is
-unavailable in this mode; no false settlement success is returned.
+fixture using `sql/local-development-rate.sql` when testing. This integrated
+branch also wires the M3 adapter in `oracle-local`; set `SETTLEMENT_BASE_URL`
+to the running M3 service. With M3 unavailable, acceptance fails safely.
 
 For a disposable H2 demonstration: `.\run-demo.ps1`. It uses the common table
 layout in a test dialect and explicit synthetic snapshot fixtures. Its in-memory
@@ -74,3 +75,33 @@ M2 verifies the M1 snapshot and completed M3 settlement against the common DB.
 The current M3 local controller only simulates CUST001; M2 refuses other customers
 in that mode. Live M1/M3 integration remains a separate verification gate.
 Kafka publication belongs to M4; M2 only writes transactional outbox records.
+
+
+## Customer transaction history
+
+After login, click **Transaction history** in the header, or visit
+http://localhost:8082/transactions. Choose an account to see its customer name,
+credits, debits, currency, transaction timestamp and balance after each entry.
+The page includes refresh, pagination and an empty state. The settlement
+confirmation also links to history; the existing M3 settlement-details link
+is preserved.
+
+History reads the additive `TRANSACTION_HISTORY` table. Apply
+`sql/02_transaction_history.sql` **once** after the common schema exists;
+it is already installed on the verified local FXLOCK database. Do not rerun
+`sql/01_fxlock_schema.sql` to add this feature. See
+[database extension](docs/06-transaction-history.md) and
+[page and verification guide](docs/07-transaction-history-ui.md).
+
+The API derives the customer from the login, checks account ownership, and
+returns completed settlements only. Closed accounts remain available for history.
+No financial writes happen when viewing history. Money is returned as decimal
+strings to preserve all Oracle decimal places in the browser.
+
+This work starts from teammate integration branch `m1-m2-m3_integration`, commit
+`a6eda0c784b4f36acba378c03665de015aeaabaa`, on local branch
+`feature-transaction-history`. Pulling that code is not evidence that live M1/M3
+services are running; end-to-end live-rate settlement needs its own verification.
+
+Publication target: the existing M2 branch **feature-quote-service**. The
+transaction-history development checkout remains separate; main is not a target.

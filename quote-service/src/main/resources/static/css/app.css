@@ -1,1 +1,267 @@
-:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#203035;background:#f3f6f3;line-height:1.5}*{box-sizing:border-box}body{margin:0}header{display:flex;align-items:center;gap:24px;padding:20px max(24px,calc((100vw - 1100px)/2));background:#fff;border-bottom:1px solid #dce4df}header span{font-size:.85rem;color:#53665d}header form{margin-left:auto}.brand{font-size:1.4rem;font-weight:750;color:#164b39;text-decoration:none}main{max-width:1100px;margin:auto;padding:28px 24px}.notice{background:#fff4d5;border:1px solid #e6cf8b;padding:14px 18px;border-radius:8px;font-size:.9rem}.intro{margin:32px 0}.eyebrow{letter-spacing:.15em;font-size:.8rem;font-weight:700;color:#23614c}h1{font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;margin:8px 0}h2{font-size:1.25rem;margin:0 0 20px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:24px}.card{background:white;border:1px solid #dce4df;border-radius:12px;padding:28px}.hint,footer{font-size:.85rem;color:#607068}label{display:block;font-weight:600;font-size:.9rem;margin:18px 0 7px}input,select{width:100%;padding:12px;border:1px solid #9bab9f;border-radius:6px;font:inherit}input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:3px solid #75bca4;outline-offset:3px}button{padding:12px 18px;font:inherit;font-weight:600;border:0;border-radius:6px;background:#195c44;color:white;cursor:pointer}button:disabled{opacity:.45;cursor:default}.quiet{background:#eef4ef;color:#204d3c}#create{width:100%;margin-top:24px}.total{font-size:2.6rem;font-weight:750;color:#195c44}.total small{font-size:1rem}dl{display:grid;grid-template-columns:1fr 1.3fr;gap:10px}dt{color:#607068}dd{margin:0;text-align:right;font-weight:600;overflow-wrap:anywhere}details{border-top:1px solid #e5eae6;margin-top:20px;padding-top:14px}summary{cursor:pointer;font-weight:600}ul{font-size:.85rem;padding-left:20px}.actions{display:flex;gap:12px;margin-top:22px}#quote-id{overflow-wrap:anywhere}#message{padding:16px;background:#fff4d5;border:1px solid #e6cf8b;border-radius:8px;margin-top:20px}#result{margin-top:20px}footer{margin-top:28px}[hidden]{display:none!important}@media(max-width:760px){.columns{grid-template-columns:1fr}header{gap:12px;padding:16px}header>span{display:none}.card{padding:22px}main{padding:20px 16px}}
+:root {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    color: #203035;
+    background: #f3f6f3;
+    line-height: 1.5;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 20px max(24px, calc((100vw - 1100px) / 2));
+    background: #fff;
+    border-bottom: 1px solid #dce4df;
+}
+
+header span {
+    font-size: 0.85rem;
+    color: #53665d;
+}
+
+header form {
+    margin-left: auto;
+}
+
+header nav { display: flex; gap: 20px; }
+header nav a { color: #195c44; font-size: .9rem; text-decoration: none; white-space: nowrap; }
+header nav a:focus-visible { outline: 3px solid #75bca4; outline-offset: 4px; }
+
+.brand {
+    font-size: 1.4rem;
+    font-weight: 750;
+    color: #164b39;
+    text-decoration: none;
+}
+
+main {
+    max-width: 1100px;
+    margin: auto;
+    padding: 28px 24px;
+}
+
+.notice {
+    background: #fff4d5;
+    border: 1px solid #e6cf8b;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.intro {
+    margin: 32px 0;
+}
+
+.eyebrow {
+    letter-spacing: 0.15em;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #23614c;
+}
+
+h1 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    line-height: 1.15;
+    margin: 8px 0;
+}
+
+h2 {
+    font-size: 1.25rem;
+    margin: 0 0 20px;
+}
+
+.columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.card {
+    background: white;
+    border: 1px solid #dce4df;
+    border-radius: 12px;
+    padding: 28px;
+}
+
+.hint,
+footer {
+    font-size: 0.85rem;
+    color: #607068;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin: 18px 0 7px;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #9bab9f;
+    border-radius: 6px;
+    font: inherit;
+}
+
+input:focus,
+select:focus,
+button:focus-visible,
+summary:focus-visible {
+    outline: 3px solid #75bca4;
+    outline-offset: 3px;
+}
+
+button {
+    padding: 12px 18px;
+    font: inherit;
+    font-weight: 600;
+    border: 0;
+    border-radius: 6px;
+    background: #195c44;
+    color: white;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.quiet {
+    background: #eef4ef;
+    color: #204d3c;
+}
+
+#create {
+    width: 100%;
+    margin-top: 24px;
+}
+
+.total {
+    font-size: 2.6rem;
+    font-weight: 750;
+    color: #195c44;
+}
+
+.total small {
+    font-size: 1rem;
+}
+
+dl {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 10px;
+}
+
+dt {
+    color: #607068;
+}
+
+dd {
+    margin: 0;
+    text-align: right;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+details {
+    border-top: 1px solid #e5eae6;
+    margin-top: 20px;
+    padding-top: 14px;
+}
+
+summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+ul {
+    font-size: 0.85rem;
+    padding-left: 20px;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+#quote-id {
+    overflow-wrap: anywhere;
+}
+
+#message {
+    padding: 16px;
+    background: #fff4d5;
+    border: 1px solid #e6cf8b;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+#result {
+    margin-top: 20px;
+}
+
+footer {
+    margin-top: 28px;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+@media (max-width: 760px) {
+    .columns {
+        grid-template-columns: 1fr;
+    }
+
+    header {
+        gap: 12px;
+        padding: 16px;
+        flex-wrap: wrap;
+    }
+
+    header nav { order: 3; width: 100%; padding-top: 10px; }
+
+    header > span {
+        display: none;
+    }
+
+    .card {
+        padding: 22px;
+    }
+
+    main {
+        padding: 20px 16px;
+    }
+}
+
+.settlement-details-link {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: #175e49;
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.settlement-details-link:hover {
+    background: #104a39;
+}
+
+.settlement-details-link:focus-visible {
+    outline: 3px solid #c58b24;
+    outline-offset: 3px;
+}

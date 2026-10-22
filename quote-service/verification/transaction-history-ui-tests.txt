@@ -1,0 +1,21 @@
+FXLock transaction history verification — 22 October 2026
+Base: m1-m2-m3_integration @ a6eda0c784b4f36acba378c03665de015aeaabaa
+Local branch: feature-transaction-history; no push or merge performed.
+Command: test-oracle.ps1 -Browser -Package
+
+com.fxlock.quote.OracleSchemaTest: tests=9, failures=0, errors=0, skipped=0
+com.fxlock.quote.ProfileGuardTest: tests=2, failures=0, errors=0, skipped=0
+com.fxlock.quote.QuoteApiTest: tests=9, failures=0, errors=0, skipped=0
+com.fxlock.quote.QuoteBrowserTest: tests=3, failures=0, errors=0, skipped=0
+com.fxlock.quote.QuoteServiceTest: tests=33, failures=0, errors=0, skipped=0
+com.fxlock.quote.TransactionHistoryApiTest: tests=10, failures=0, errors=0, skipped=0
+com.fxlock.quote.TransactionHistoryBrowserTest: tests=4, failures=0, errors=0, skipped=0
+com.fxlock.quote.TransactionHistoryOracleApiTest: tests=3, failures=0, errors=0, skipped=0
+com.fxlock.quote.TransactionHistoryOracleTest: tests=5, failures=0, errors=0, skipped=0
+com.fxlock.quote.UpstreamContractTest: tests=9, failures=0, errors=0, skipped=0
+
+Total: tests=87, failures=0, errors=0, skipped=0
+BUILD SUCCESS
+Oracle checks used rollback-only fixtures. Browser checks used isolated H2 fixtures.
+Actual Oracle history remains empty; no sample financial transactions committed.
+Live M1/M3 services and complete live-rate settlement were not verified in this run.

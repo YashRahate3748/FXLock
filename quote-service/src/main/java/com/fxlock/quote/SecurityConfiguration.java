@@ -21,7 +21,8 @@ public class SecurityConfiguration {
         return http.authorizeHttpRequests(a -> a.requestMatchers("/css/**","/js/**","/actuator/health","/error").permitAll().anyRequest().authenticated())
             .formLogin(f -> f.defaultSuccessUrl("/",true)).logout(l -> l.logoutSuccessUrl("/login?logout"))
             .exceptionHandling(e -> e.defaultAuthenticationEntryPointFor(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),request -> request.getServletPath().startsWith("/quotes"))
-                .defaultAuthenticationEntryPointFor(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),request -> request.getServletPath().startsWith("/wallets/")))
+                .defaultAuthenticationEntryPointFor(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),request -> request.getServletPath().startsWith("/wallets/"))
+                .defaultAuthenticationEntryPointFor(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),request -> request.getServletPath().startsWith("/api/transaction-history")))
             .build();
     }
 }

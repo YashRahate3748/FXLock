@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>FXLock · Transaction history</title>
+    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" href="/css/history.css">
+    <script defer src="/js/history.js"></script>
+</head>
+<body>
+<header th:replace="~{fragments/common :: header}"></header>
+<main class="history-main">
+    <div class="history-heading">
+        <div class="intro">
+            <p class="eyebrow">Your account activity</p>
+            <h1>Transaction history</h1>
+            <p>See money in, money out, and the balance after each transaction.</p>
+        </div>
+        <a href="/" class="history-convert">Make a conversion <span aria-hidden="true">→</span></a>
+    </div>
+    <section class="card history-card" aria-labelledby="history-title">
+        <form id="history-filters" class="history-toolbar">
+            <div class="history-account-field">
+                <label for="history-account">Account</label>
+                <select id="history-account" name="walletId" disabled><option value="">Loading your accounts…</option></select>
+            </div>
+            <button id="history-refresh" type="submit" class="quiet" disabled>Refresh history</button>
+        </form>
+        <div class="history-table-heading">
+            <h2 id="history-title">Completed wallet transactions</h2>
+            <span id="history-count" class="history-count"></span>
+        </div>
+        <p class="hint history-balance-note">Each row belongs to one wallet. Balance after transaction is historical; EUR and USD balances are separate.</p>
+        <p id="history-message" role="status" aria-live="polite">Loading transaction history…</p>
+        <div id="history-empty" class="history-empty" hidden>
+            <span class="history-empty-symbol" aria-hidden="true">↔</span>
+            <h3>No transactions yet</h3>
+            <p>This account has no completed wallet transactions. Creating or cancelling a quote does not move money.</p>
+            <a href="/">Return to currency quotes</a>
+        </div>
+        <div id="history-table-wrap" class="history-table-wrap" role="region" aria-label="Transaction history table" tabindex="0" hidden>
+            <table id="history-table">
+                <caption class="sr-only">Your completed wallet transactions, newest first. All balances in this prototype are simulated.</caption>
+                <thead><tr>
+                    <th scope="col">Date &amp; time</th>
+                    <th scope="col">Customer name</th>
+                    <th scope="col">Account</th>
+                    <th scope="col">Currency</th>
+                    <th scope="col" class="amount">Amount credited</th>
+                    <th scope="col" class="amount">Amount debited</th>
+                    <th scope="col" class="amount">Balance after transaction</th>
+                    <th scope="col">Settlement reference</th>
+                </tr></thead>
+                <tbody id="history-rows"></tbody>
+            </table>
+        </div>
+        <div id="history-pagination" class="history-pagination" hidden>
+            <p id="history-page-label" class="hint"></p>
+            <div><button id="history-previous" type="button" class="quiet">Previous</button><button id="history-next" type="button" class="quiet">Next</button></div>
+        </div>
+        <p class="hint history-footer-note">Recorded from settled wallet movements. All balances and transactions in this prototype are simulated.</p>
+    </section>
+    <footer th:replace="~{fragments/common :: footer}"></footer>
+</main>
+</body>
+</html>

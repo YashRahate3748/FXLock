@@ -1,6 +1,32 @@
 'use strict';
 const el = id => document.getElementById(id);
-let active = null, remainingAtLoad = 0, loadedAt = 0, busy = false;
+let active = null;
+let remainingAtLoad = 0;
+let loadedAt = 0;
+let busy = false;
+
+const confirmedSettlements = new Map();
+
+function showSettlementConfirmation(result) {
+    el('result-text').textContent =
+        'M3 confirmed settlement ' + result.settlementId +
+        ': ' + result.sourceAmount +
+        ' EUR converted to ' + result.targetAmount + ' USD.';
+
+    const baseUrl = document.querySelector(
+        'meta[name="settlement-ui-base-url"]'
+    ).content;
+
+    const detailsUrl = new URL('/settlement.html', baseUrl);
+    detailsUrl.searchParams.set('settlementId', result.settlementId);
+
+    const link = el('settlement-details-link');
+    link.href = detailsUrl.toString();
+    link.hidden = false;
+
+    el('result').hidden = false;
+}
+
 function message(text) { el('message').textContent = text; el('message').hidden = false; }
 async function api(path, options = {}) {
   const headers = {'Content-Type':'application/json', ...(options.headers || {})};
@@ -35,6 +61,11 @@ function show(view) {
   el('quote-id').textContent = active.quoteId; el('lookup-id').value = active.quoteId;
   el('reasons').replaceChildren(...active.confidence.reasons.map(reason => { const li = document.createElement('li'); li.textContent = reason; return li; }));
   history.replaceState(null, '', '/?quote=' + encodeURIComponent(active.quoteId)); tick();
+  const confirmed = confirmedSettlements.get(active.quoteId);
+
+  if (confirmed) {
+    showSettlementConfirmation(confirmed);
+  }
 }
 el('quote-form').addEventListener('submit', async event => {
   event.preventDefault(); if(busy) return; el('create').disabled = true; el('message').hidden = true;
@@ -57,8 +88,11 @@ el('accept').addEventListener('click',async () => {
   busy=true; el('create').disabled=true; tick(); el('message').hidden=true;
   try {
     const result=await api('/quotes/' + quote.quoteId + '/accept',{method:'POST',headers:{'Idempotency-Key':key}});
-    active.status='SETTLED'; el('result').hidden=false;
-    el('result-text').textContent='M3 confirmed settlement ' + result.settlementId + ': ' + result.sourceAmount + ' EUR converted to ' + result.targetAmount + ' USD.';
+    active.status = 'SETTLED';
+
+    confirmedSettlements.set(quote.quoteId, result);
+
+    showSettlementConfirmation(result);
   } catch(error) { message(error.message); } finally { busy=false; el('create').disabled=false; tick(); }
 });
 async function loadWallets() {

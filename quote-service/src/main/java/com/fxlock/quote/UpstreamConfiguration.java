@@ -33,7 +33,7 @@ public class UpstreamConfiguration {
         };
     }
     @Bean @Profile("oracle-local") RateGateway databaseRates(SharedRateReader reader) { return reader::latest; }
-    @Bean @Profile({"demo","oracle-local"}) SettlementGateway unavailableSettlement() {
+    @Bean @Profile("demo") SettlementGateway unavailableSettlement() {
         return (id,customer,key) -> { throw new QuoteException(503,"SETTLEMENT_UNAVAILABLE","M3 is not connected in this mode. No wallets have been changed."); };
     }
     record M1Response(Long snapshotId,String currencyPair,BigDecimal marketRate,OffsetDateTime receivedAt,
@@ -60,7 +60,7 @@ public class UpstreamConfiguration {
     }
     record M3Response(String settlementId,String quoteId,String status,String sourceCurrency,
         BigDecimal sourceAmount,String targetCurrency,BigDecimal targetAmount) {}
-    @Bean @Profile("team") SettlementGateway teamSettlement(QuoteRepository repository,QuotePolicy policy,ObjectMapper json) {
+    @Bean @Profile({"team", "oracle-local"}) SettlementGateway teamSettlement(QuoteRepository repository,QuotePolicy policy,ObjectMapper json) {
         return (id,customer,key) -> {
             // Current teammate controller simulates CUST001; refuse all other identities until M3 has authenticated identity support.
             if(repository.customerId(customer)!=repository.customerId("CUST001"))
