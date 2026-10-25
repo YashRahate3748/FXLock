@@ -11,126 +11,106 @@ import java.time.ZoneOffset;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(
-        RateUnavailableException.class
-    )
-    public ResponseEntity<ApiError>
-    handleRateUnavailable(
+    @ExceptionHandler(RateUnavailableException.class)
+    public ResponseEntity<ApiError> handleRateUnavailable(
             RateUnavailableException ex,
-            HttpServletRequest request
-    ) {
+            HttpServletRequest request) {
 
         return ResponseEntity
                 .status(
-                    HttpStatus.SERVICE_UNAVAILABLE
-                )
+                        HttpStatus.SERVICE_UNAVAILABLE)
                 .body(
-                    error(
-                        "RATE_UNAVAILABLE",
-                        ex.getMessage(),
-                        request
-                    )
-                );
+                        error(
+                                "RATE_UNAVAILABLE",
+                                ex.getMessage(),
+                                request));
     }
 
-    @ExceptionHandler(
-        ResourceNotFoundException.class
-    )
-    public ResponseEntity<ApiError>
-    handleNotFound(
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(
             ResourceNotFoundException ex,
-            HttpServletRequest request
-    ) {
+            HttpServletRequest request) {
 
         return ResponseEntity
                 .status(
-                    HttpStatus.NOT_FOUND
-                )
+                        HttpStatus.NOT_FOUND)
                 .body(
-                    error(
-                        "RESOURCE_NOT_FOUND",
-                        ex.getMessage(),
-                        request
-                    )
-                );
+                        error(
+                                "RESOURCE_NOT_FOUND",
+                                ex.getMessage(),
+                                request));
     }
 
-    @ExceptionHandler(
-        IllegalArgumentException.class
-    )
-    public ResponseEntity<ApiError>
-    handleBadRequest(
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleBadRequest(
             IllegalArgumentException ex,
-            HttpServletRequest request
-    ) {
+            HttpServletRequest request) {
 
         return ResponseEntity
                 .badRequest()
                 .body(
-                    error(
-                        "INVALID_REQUEST",
-                        ex.getMessage(),
-                        request
-                    )
-                );
+                        error(
+                                "INVALID_REQUEST",
+                                ex.getMessage(),
+                                request));
     }
 
-    @ExceptionHandler(
-        IllegalStateException.class
-    )
-    public ResponseEntity<ApiError>
-    handleConflict(
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiError> handleConflict(
             IllegalStateException ex,
-            HttpServletRequest request
-    ) {
+            HttpServletRequest request) {
 
         return ResponseEntity
                 .status(
-                    HttpStatus.CONFLICT
-                )
+                        HttpStatus.CONFLICT)
                 .body(
-                    error(
-                        "INVALID_STATE",
-                        ex.getMessage(),
-                        request
-                    )
-                );
+                        error(
+                                "INVALID_STATE",
+                                ex.getMessage(),
+                                request));
+    }
+
+    @ExceptionHandler({
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+
+            org.springframework.web.bind.MissingServletRequestParameterException.class
+    })
+    public ResponseEntity<ApiError> handleInvalidQuery(
+            Exception ex,
+            HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(
+                error(
+                        "INVALID_REQUEST",
+                        "Check query parameters. Dates must use ISO-8601 format.",
+                        request));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError>
-    handleUnexpected(
+    public ResponseEntity<ApiError> handleUnexpected(
             Exception ex,
-            HttpServletRequest request
-    ) {
+            HttpServletRequest request) {
 
         return ResponseEntity
                 .status(
-                    HttpStatus.INTERNAL_SERVER_ERROR
-                )
+                        HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(
-                    error(
-                        "INTERNAL_ERROR",
-                        "Unexpected server error",
-                        request
-                    )
-                );
+                        error(
+                                "INTERNAL_ERROR",
+                                "Unexpected server error",
+                                request));
     }
 
     private ApiError error(
             String code,
             String message,
-            HttpServletRequest request
-    ) {
+            HttpServletRequest request) {
 
         return new ApiError(
                 OffsetDateTime.now(
-                    ZoneOffset.UTC
-                ),
+                        ZoneOffset.UTC),
                 "rate-service",
                 code,
                 message,
-                request.getRequestURI()
-        );
+                request.getRequestURI());
     }
 }
