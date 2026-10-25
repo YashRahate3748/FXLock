@@ -60,17 +60,27 @@ public class UpstreamConfiguration {
     }
     record M3Response(String settlementId,String quoteId,String status,String sourceCurrency,
         BigDecimal sourceAmount,String targetCurrency,BigDecimal targetAmount) {}
-    @Bean @Profile({"team", "oracle-local"}) SettlementGateway teamSettlement(QuoteRepository repository,QuotePolicy policy,ObjectMapper json) {
+    @Bean @Profile({"team","oracle-local"}) SettlementGateway integratedSettlement(QuoteRepository repository,QuotePolicy policy,ObjectMapper json,
+        @Value("${fxlock.internal-token}") String token) {
+        if(token==null || token.isBlank()) throw new IllegalStateException("FX_INTERNAL_TOKEN is required for the team profile");
+        return settlementGateway(repository,policy,json,token);
+    }
+    private SettlementGateway settlementGateway(QuoteRepository repository,QuotePolicy policy,ObjectMapper json,String token) {
         return (id,customer,key) -> {
-            // Current teammate controller simulates CUST001; refuse all other identities until M3 has authenticated identity support.
-            if(repository.customerId(customer)!=repository.customerId("CUST001"))
-                throw new QuoteException(503,"M3_IDENTITY_UNSUPPORTED","The current M3 local controller only supports CUST001.");
+            Quote quote=repository.owned(id,customer).orElseThrow(() -> new QuoteException(404,"QUOTE_NOT_FOUND","Quote not found for this customer."));
             try {
-                var result=client(requiredUrl(policy.settlementBaseUrl(),"SETTLEMENT_BASE_URL")).build()
+                var builder=client(requiredUrl(policy.settlementBaseUrl(),"SETTLEMENT_BASE_URL"));
+                builder.defaultHeaders(headers -> {
+                    headers.set("X-Internal-Token",token);
+                    headers.set("X-Customer-Ref",QuoteRepository.customerRef(customer));
+                });
+                var result=builder.build()
                     .post().uri("/api/v1/settlements").header("Idempotency-Key",key)
                     .body(Map.of("quoteId",id)).retrieve().body(M3Response.class);
                 if(result==null || !id.equals(result.quoteId()) || result.settlementId()==null || !"COMPLETED".equals(result.status())
-                    || !"EUR".equals(result.sourceCurrency()) || !"USD".equals(result.targetCurrency()))
+                    || !quote.sourceCurrency().equals(result.sourceCurrency()) || !quote.targetCurrency().equals(result.targetCurrency())
+                    || result.sourceAmount()==null || result.targetAmount()==null
+                    || quote.sourceAmount().compareTo(result.sourceAmount())!=0 || quote.targetAmount().compareTo(result.targetAmount())!=0)
                     throw new QuoteException(502,"SETTLEMENT_RESPONSE_INVALID","M3 returned an invalid settlement response.");
                 return new SettlementResult(result.settlementId(),id,result.status(),result.sourceAmount(),result.targetAmount(),
                     repository.settlementCompletedAt(result.settlementId(),id,customer));

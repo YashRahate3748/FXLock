@@ -1,0 +1,12 @@
+.fx-dashboard .history-panel { margin-top: 24px; }
+.fx-dashboard .history-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 18px; }
+.fx-dashboard .history-controls label { display: block; font-weight: 600; margin-bottom: 7px; }
+.fx-dashboard .history-controls select { font: inherit; padding: 10px; border: 1px solid #91a99b; border-radius: 6px; background: #fff; color: #203035; max-width: 100%; }
+.fx-dashboard .history-scroll { overflow-x: auto; margin-top: 24px; }
+.fx-dashboard .history-table { width: 100%; border-collapse: collapse; font-size: .9rem; text-align: left; }
+.fx-dashboard .history-table caption { text-align: left; color: #53665d; padding: 0 0 12px; }
+.fx-dashboard .history-table th, .fx-dashboard .history-table td { padding: 14px 12px; border-bottom: 1px solid #dce4df; vertical-align: top; }
+.fx-dashboard .history-table th { background: #f3f6f3; color: #164b39; }
+.fx-dashboard .history-amount { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fx-dashboard .history-reference { overflow-wrap: anywhere; min-width: 170px; }
+.fx-dashboard .history-table a { color: #164b39; }

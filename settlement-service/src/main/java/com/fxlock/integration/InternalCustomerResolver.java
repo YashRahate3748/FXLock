@@ -59,10 +59,10 @@ public class InternalCustomerResolver {
 
         List<String> customers = jdbcTemplate.query(
                 """
-                SELECT customer_ref
-                FROM customer
-                WHERE customer_ref = ?
-                  AND status = 'ACTIVE'
+                SELECT c.customer_ref
+                FROM customer c JOIN customer_account a ON a.customer_id=c.customer_id
+                WHERE c.customer_ref = ?
+                  AND c.status = 'ACTIVE' AND a.account_status='ACTIVE'
                 """,
                 (rs, rowNum) -> rs.getString("customer_ref"),
                 customerRef);

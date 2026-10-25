@@ -176,6 +176,9 @@ public class IdempotencyRepository {
     }
 
     private boolean isUniqueViolation(Throwable exception) {
+        if (exception instanceof org.springframework.dao.DuplicateKeyException) {
+            return true;
+        }
         for (Throwable cause = exception;
                 cause != null;
                 cause = cause.getCause()) {

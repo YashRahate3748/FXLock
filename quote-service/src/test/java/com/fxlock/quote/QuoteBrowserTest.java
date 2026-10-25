@@ -37,9 +37,10 @@ class QuoteBrowserTest {
         wait=new WebDriverWait(driver,Duration.ofSeconds(15));
         driver.get("http://localhost:"+port);
         driver.findElement(By.name("username")).sendKeys("customer-demo");
-        driver.findElement(By.name("password")).sendKeys("learn-fxlock",Keys.ENTER);
+        driver.findElement(By.name("password")).sendKeys("learn-fxlock");
+        driver.findElement(By.name("password")).sendKeys(Keys.ENTER);
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("quote-form")));
-        wait.until(d -> !new Select(d.findElement(By.id("source-wallet"))).getFirstSelectedOption().getDomProperty("value").isBlank());
+        wait.until(ExpectedConditions.refreshed(d -> !new Select(d.findElement(By.id("source-wallet"))).getFirstSelectedOption().getDomProperty("value").isBlank()));
     }
     @AfterEach void quit() { if(driver!=null) driver.quit(); }
     void create() {
@@ -63,5 +64,16 @@ class QuoteBrowserTest {
         create(); String id=driver.findElement(By.id("quote-id")).getText();
         driver.navigate().refresh(); wait.until(ExpectedConditions.textToBe(By.id("quote-id"),id));
         assertThat(driver.findElement(By.id("target-amount")).getText()).isEqualTo("1167.66");
+    }
+    @Test void reverseDirectionUpdatesWalletsLabelsAndTheStoredQuoteReview() {
+        new Select(driver.findElement(By.id("direction"))).selectByValue("USD-EUR");
+        assertThat(driver.findElement(By.id("amount-label")).getText()).contains("USD");
+        assertThat(new Select(driver.findElement(By.id("source-wallet"))).getFirstSelectedOption().getDomProperty("value")).isEqualTo("2");
+        assertThat(new Select(driver.findElement(By.id("target-wallet"))).getFirstSelectedOption().getDomProperty("value")).isEqualTo("1");
+        var amount=driver.findElement(By.id("amount")); amount.clear(); amount.sendKeys("100.00");
+        driver.findElement(By.id("create")).click();
+        wait.until(ExpectedConditions.textToBe(By.id("target-amount"),"85.30"));
+        assertThat(driver.findElement(By.id("offered-rate")).getText()).contains("1 USD", "EUR");
+        assertThat(driver.findElement(By.id("review-target-currency")).getText()).isEqualTo("EUR");
     }
 }

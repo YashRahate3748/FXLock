@@ -24,11 +24,11 @@ class QuoteApiTest {
         """.formatted(amount); }
     @BeforeEach void setup() { when(clock.instant()).thenReturn(Instant.parse("2026-10-19T10:00:00Z")); }
     @Test void actualLoginAuthenticatesTheSyntheticCustomer() throws Exception {
-        mvc.perform(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin().user("customer-demo").password("learn-fxlock"))
+        mvc.perform(post("/login").with(csrf()).param("username","customer-demo").param("password","learn-fxlock"))
             .andExpect(org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated().withUsername("customer-demo"));
     }
     @Test void wrongPasswordIsRejected() throws Exception {
-        mvc.perform(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin().user("customer-demo").password("wrong-password"))
+        mvc.perform(post("/login").with(csrf()).param("username","customer-demo").param("password","wrong-password"))
             .andExpect(org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.unauthenticated());
     }
     @Test void unauthenticatedQuoteReadIs401() throws Exception { mvc.perform(get("/quotes/unknown")).andExpect(status().isUnauthorized()); }

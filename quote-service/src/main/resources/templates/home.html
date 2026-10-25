@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <meta name="settlement-ui-base-url" content="http://localhost:8083">
+    <meta name="settlement-ui-base-url" th:content="${integrated} ? '' : 'http://localhost:8083'">
     <meta name="csrf-token" th:content="${_csrf.token}">
     <meta name="csrf-header" th:content="${_csrf.headerName}">
 
@@ -24,7 +24,7 @@
         </aside>
 
         <div class="intro">
-            <p class="eyebrow">EUR → USD</p>
+            <p id="direction-eyebrow" class="eyebrow">EUR → USD</p>
             <h1>A clear amount before you commit.</h1>
             <p>
                 Request a short-lived offer, review the exact amount,
@@ -37,7 +37,12 @@
                 <h2>Request your quote</h2>
 
                 <form id="quote-form">
-                    <label for="amount">Amount in EUR</label>
+                    <label for="direction">Conversion direction</label>
+                    <select id="direction" required>
+                        <option value="EUR-USD">EUR → USD</option>
+                        <option value="USD-EUR">USD → EUR</option>
+                    </select>
+                    <label id="amount-label" for="amount">Amount in EUR</label>
                     <input
                         id="amount"
                         name="amount"
@@ -53,21 +58,22 @@
                         Allowed range:
                         <span th:text="${minAmount}"></span>–<span
                             th:text="${maxAmount}"
-                        ></span> EUR.
+                        ></span> <span id="limit-currency">EUR</span>.
                     </p>
 
-                    <label for="source-wallet">Sender EUR wallet</label>
+                    <label id="source-wallet-label" for="source-wallet">Sender EUR wallet</label>
                     <select id="source-wallet" required>
                         <option value="">Loading accounts…</option>
                     </select>
 
-                    <label for="target-wallet">Beneficiary USD wallet</label>
+                    <label id="target-wallet-label" for="target-wallet">Destination USD wallet</label>
                     <select id="target-wallet" required>
                         <option value="">Loading accounts…</option>
                     </select>
 
                     <p class="hint">
-                        Choose your sender account and an eligible beneficiary.
+                        Choose your own source wallet and either your own destination
+                        or another eligible customer's wallet in the other currency.
                         Balances and eligibility are checked again when the payment
                         is processed.
                     </p>
@@ -104,14 +110,20 @@
                 </div>
 
                 <div id="review" hidden>
-                    <p>You receive</p>
+                    <p>Destination receives</p>
 
                     <div class="total">
                         <span id="target-amount"></span>
-                        <small>USD</small>
+                        <small id="review-target-currency">USD</small>
                     </div>
 
                     <dl>
+                        <dt>FX direction</dt>
+                        <dd id="quote-direction"></dd>
+                        <dt>Source wallet</dt>
+                        <dd id="review-source-wallet"></dd>
+                        <dt>Destination wallet</dt>
+                        <dd id="review-target-wallet"></dd>
                         <dt>You pay</dt>
                         <dd id="source-amount"></dd>
 
@@ -141,6 +153,8 @@
                         <button id="accept">Accept quote</button>
                         <button id="cancel" class="quiet">Cancel quote</button>
                     </div>
+
+                    <p class="hint">This offer is for the wallets shown above. Request a new quote to change the destination.</p>
 
                     <p class="hint">
                         Keep this quote ID for history or retries:

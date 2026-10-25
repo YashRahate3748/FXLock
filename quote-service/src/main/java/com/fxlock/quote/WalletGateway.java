@@ -3,7 +3,7 @@ package com.fxlock.quote;
 import java.util.List;
 import com.fxlock.quote.Models.WalletOption;
 
-/** M3 supplies eligible accounts; M2 checks selection and M3 rechecks under lock. */
+/** M2 reads eligible wallets from the shared schema; M3 rechecks them under lock. */
 public interface WalletGateway {
     List<WalletOption> options(String customerId);
 }

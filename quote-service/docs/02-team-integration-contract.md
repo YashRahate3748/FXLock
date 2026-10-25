@@ -45,9 +45,32 @@ targetCurrency/targetAmount. completedAt is read from the matching committed
 SETTLEMENT row. Errors preserve M3's code and HTTP status. Uncertain retries
 keep the same key.
 
-The current M3 local controller hardcodes CUST001 and has no authenticated
-multi-customer contract. M2 blocks other customers from this adapter. Do not
-expose this development integration as a production payment service.
+For M2 `team`, M3 runs `integration`. M2 supplies `X-Internal-Token` and
+`X-Customer-Ref` derived from the authenticated username (`customer-demo` maps to
+`CUST001`, `customer-other` to `CUST002`), never browser-supplied
+identity headers. M3 authenticates the service token and resolves an active
+customer before delegating to its existing settlement coordinator. The receipt
+is served through M2, including its authenticated GET details API. No token is
+returned in browser content. M2's main integrated login sends the email and exact
+password to `/internal/accounts/verify` on M3. Only the returned verified customer
+reference becomes the session identity. Sign-up sends full name, email and password
+to `/internal/accounts/register` after validating password confirmation. M3 alone
+persists accounts and zero-balance wallets. It stores the exact demonstration
+password in `LOGIN_PASSWORD` only under `integration,plaintext-account-demo`.
+This plaintext mode is unsafe for real users or deployment. CSRF remains enabled.
+Demo username login is explicitly separate and is never a fallback after M3 failure.
+
+The M3 receipt's `/wallets.html` link is preserved. M2 routes the existing M3
+wallet HTML/CSS/JavaScript and forwards its wallet balance, settlement lookup and
+acceptance API requests using the session's customer identity. M3's integration
+wallet endpoint resolves that identity before calling its existing read-only
+wallet service. Browser acceptance posts still require M2's CSRF token; the
+internal service token stays on the backend.
+
+The standalone M3 `local` controller still hardcodes CUST001, and M2's isolated
+`oracle-local` adapter retains its matching restriction. Do not combine M3's
+`local` and `integration` profiles. The root launcher uses loopback bindings and
+is intended for local development.
 
 ## Team profile settings
 
@@ -56,8 +79,10 @@ RATE_BASE_URL=http://localhost:8081
 SETTLEMENT_BASE_URL=http://localhost:8083
 FXLOCK_SERVICE_USERNAME=fxlock-service
 FXLOCK_SERVICE_PASSWORD=<local secret, never commit>
+FX_INTERNAL_TOKEN=<same shared secret as M3>
+FXLOCK_ACCOUNT_SERVICE_URL=http://localhost:8083
 
 Launch with --spring.profiles.active=team, never together with demo/oracle-local.
 Use direct service URLs until M4's Eureka setup and registration are available.
-The M3 service must run its local profile. Live teammate processes are not part
+The M3 service must run its integration profile. Live teammate processes are not part
 of the isolated adapter tests and must be verified before claiming full integration.

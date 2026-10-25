@@ -16,7 +16,7 @@ public class QuoteController {
     private final Clock clock;
     private final Environment environment;
     public QuoteController(QuoteService service,Clock clock,Environment environment) { this.service=service; this.clock=clock; this.environment=environment; }
-    private QuoteView view(Quote q) { return new QuoteView(q,clock.instant(),environment.acceptsProfiles(Profiles.of("demo","oracle-local"))); }
+    private QuoteView view(Quote q) { return new QuoteView(q,clock.instant(),environment.acceptsProfiles(Profiles.of("demo"))); }
     @PostMapping ResponseEntity<QuoteView> create(@Valid @RequestBody CreateQuoteRequest body,Principal principal) {
         Quote q=service.create(body,principal.getName());
         return ResponseEntity.created(java.net.URI.create("/quotes/"+q.quoteId())).body(view(q));

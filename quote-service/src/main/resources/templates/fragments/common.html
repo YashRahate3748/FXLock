@@ -2,6 +2,7 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org"><body>
 <!-- All MVC screens hosted here can reuse these fragments. Remote service screens require agreed links/routes. -->
 <header th:fragment="header"><a href="/" class="brand">FXLock</a><span>Currency quotes · <span th:text="${customer}"></span></span>
+<nav th:if="${dashboardUrl != null}" aria-label="Customer navigation"><a th:href="${dashboardUrl}">Dashboard</a> · <a th:href="${historyUrl}">Transaction history</a></nav>
 <form th:action="@{/logout}" method="post"><button class="quiet">Sign out</button></form></header>
-<footer th:fragment="footer">Customer quotes are provided by M2. Rate health, wallet history and operational screens can be added to this common layout by their feature owners.</footer>
+<footer th:fragment="footer">Customer quotes are provided by M2. The dashboard, wallet funding and customer transaction history are provided by M3.</footer>
 </body></html>

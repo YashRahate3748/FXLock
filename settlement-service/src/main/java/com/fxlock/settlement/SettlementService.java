@@ -148,8 +148,11 @@ public class SettlementService {
                 first.walletId().equals(quote.targetWalletId())
                         ? first : second;
 
-        validateWallet(source, customerId, quote.sourceCurrency());
-        validateWallet(target, customerId, quote.targetCurrency());
+        if (!customerId.equals(source.customerId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "WALLET_NOT_OWNED");
+        }
+        validateWallet(source, quote.sourceCurrency());
+        validateWallet(target, quote.targetCurrency());
 
         if (quote.sourceCurrency().equals(quote.targetCurrency())) {
             throw new ResponseStatusException(
@@ -182,6 +185,10 @@ public class SettlementService {
                     HttpStatus.CONFLICT,
                     "INSUFFICIENT_FUNDS"
             );
+        }
+
+        if (target.balance().add(quote.targetAmount()).compareTo(new java.math.BigDecimal("999999999999999.9999")) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "BALANCE_LIMIT");
         }
 
         String settlementId = UUID.randomUUID().toString();
@@ -287,13 +294,12 @@ public class SettlementService {
 
     private void validateWallet(
             LockedWallet wallet,
-            Long customerId,
             String expectedCurrency
     ) {
-        if (!customerId.equals(wallet.customerId())) {
+        if (!walletRepository.activeAccount(wallet.customerId())) {
             throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "WALLET_NOT_OWNED"
+                    HttpStatus.CONFLICT,
+                    "ACCOUNT_NOT_ACTIVE"
             );
         }
 

@@ -19,8 +19,15 @@ const elements = {
     newAcceptanceButton: document.getElementById("newAcceptanceButton")
 };
 
-const STORAGE_KEY = "fxlock.local.CUST001.acceptance.v1";
+const customerRef = document.querySelector('meta[name="customer-ref"]')?.content;
+const STORAGE_KEY = customerRef
+    ? `fxlock.customer.${customerRef}.acceptance.v1`
+    : "fxlock.local.CUST001.acceptance.v1";
 const REQUEST_TIMEOUT_MS = 15000;
+
+if (customerRef) {
+    document.getElementById("customerBadge").textContent = "Customer " + customerRef;
+}
 
 let acceptance = null;
 let acceptanceBusy = false;
@@ -42,6 +49,15 @@ function formatMoney(amount, currency) {
 
 async function requestJson(url, options = {}) {
     const controller = new AbortController();
+    const headers = { Accept: "application/json", ...options.headers };
+    const method = (options.method || "GET").toUpperCase();
+    if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const csrfHeader = document.querySelector('meta[name="csrf-header"]')?.content;
+        if (csrfToken && csrfHeader) {
+            headers[csrfHeader] = csrfToken;
+        }
+    }
 
     const timer = setTimeout(
         () => controller.abort(),
@@ -54,10 +70,7 @@ async function requestJson(url, options = {}) {
             signal: controller.signal,
             cache: "no-store",
 
-            headers: {
-                Accept: "application/json",
-                ...options.headers
-            }
+            headers
         });
 
         if (!response.ok) {

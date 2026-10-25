@@ -64,7 +64,10 @@ public class SettlementRepository {
                        q.target_currency,
                        s.target_amount
                 FROM settlement s
-                JOIN customer c ON c.customer_id = s.customer_id
+                JOIN customer c ON (c.customer_id=s.customer_id OR EXISTS (
+                    SELECT 1 FROM wallet_ledger l JOIN wallet w ON w.wallet_id=l.wallet_id
+                    WHERE l.settlement_id=s.settlement_id AND w.customer_id=c.customer_id AND s.status='COMPLETED'))
+                JOIN customer_account a ON a.customer_id=c.customer_id AND a.account_status='ACTIVE'
                 JOIN fx_quote q ON q.quote_id = s.quote_id
                 WHERE s.settlement_id = ?
                   AND c.customer_ref = ?
@@ -90,10 +93,10 @@ public class SettlementRepository {
     public java.util.Optional<Long> findActiveCustomerIdByRef(String customerRef) {
         return jdbcTemplate.query(
                 """
-                SELECT customer_id
-                FROM customer
-                WHERE customer_ref = ?
-                  AND status = 'ACTIVE'
+                SELECT c.customer_id
+                FROM customer c JOIN customer_account a ON a.customer_id=c.customer_id
+                WHERE c.customer_ref = ?
+                  AND c.status = 'ACTIVE' AND a.account_status='ACTIVE'
                 """,
                 (rs, rowNum) -> rs.getLong("customer_id"),
                 customerRef

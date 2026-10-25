@@ -4,6 +4,44 @@ let active = null;
 let remainingAtLoad = 0;
 let loadedAt = 0;
 let busy = false;
+let walletOptions = [];
+let walletsLoaded = false;
+
+function selectedDirection() {
+  return el('direction').value === 'USD-EUR'
+    ? {sourceCurrency:'USD',targetCurrency:'EUR'}
+    : {sourceCurrency:'EUR',targetCurrency:'USD'};
+}
+function populateWallets() {
+  const {sourceCurrency,targetCurrency}=selectedDirection();
+  let eligible=true;
+  for (const [id,currency,debit] of [['source-wallet',sourceCurrency,true],['target-wallet',targetCurrency,false]]) {
+    const selected=el(id).value;
+    const matching=walletOptions.filter(w => w.currency===currency && (!debit || w.canDebit));
+    el(id).replaceChildren(...matching.map(w => { const option=document.createElement('option'); option.value=w.walletId; option.textContent=w.label; return option; }));
+    if (matching.some(w => w.walletId===selected)) el(id).value=selected;
+    if (!matching.length) eligible=false;
+  }
+  el('create').disabled=busy || !walletsLoaded || !eligible;
+}
+function updateDirectionUi() {
+  const {sourceCurrency,targetCurrency}=selectedDirection();
+  el('direction-eyebrow').textContent=sourceCurrency+' → '+targetCurrency;
+  el('amount-label').textContent='Amount in '+sourceCurrency;
+  el('limit-currency').textContent=sourceCurrency;
+  el('source-wallet-label').textContent='Sender '+sourceCurrency+' wallet';
+  el('target-wallet-label').textContent='Destination '+targetCurrency+' wallet';
+  populateWallets();
+}
+el('direction').addEventListener('change',updateDirectionUi);
+
+function showQuotedWallets() {
+  if (!active) return;
+  for (const [field,id,currency] of [['review-source-wallet',active.sourceWalletId,active.sourceCurrency],['review-target-wallet',active.targetWalletId,active.targetCurrency]]) {
+    const wallet=walletOptions.find(option => option.walletId===id && option.currency===currency);
+    el(field).textContent=wallet ? wallet.label+' (#'+id+')' : 'Wallet #'+id+' · '+currency;
+  }
+}
 
 const confirmedSettlements = new Map();
 
@@ -11,13 +49,13 @@ function showSettlementConfirmation(result) {
     el('result-text').textContent =
         'M3 confirmed settlement ' + result.settlementId +
         ': ' + result.sourceAmount +
-        ' EUR converted to ' + result.targetAmount + ' USD.';
+        ' ' + active.sourceCurrency + ' converted to ' + result.targetAmount + ' ' + active.targetCurrency + '.';
 
     const baseUrl = document.querySelector(
         'meta[name="settlement-ui-base-url"]'
     ).content;
 
-    const detailsUrl = new URL('/settlement.html', baseUrl);
+    const detailsUrl = new URL('/settlement.html', baseUrl || window.location.origin);
     detailsUrl.searchParams.set('settlementId', result.settlementId);
 
     const link = el('settlement-details-link');
@@ -48,6 +86,9 @@ function tick() {
   el('accept').disabled = busy || active.status === 'SETTLED' || active.status === 'CANCELLED' || (!open && !hasRetry);
   el('accept').textContent = hasRetry ? 'Retry / check acceptance' : 'Accept quote';
   el('cancel').disabled = busy || !open;
+  el('direction').disabled=busy;
+  el('source-wallet').disabled=busy;
+  el('target-wallet').disabled=busy;
 }
 function show(view) {
   active = view.quote;
@@ -55,8 +96,11 @@ function show(view) {
   loadedAt = performance.now();
   el('empty').hidden = true; el('review').hidden = false; el('result').hidden = true;
   el('target-amount').textContent = active.targetAmount;
-  el('source-amount').textContent = active.sourceAmount + ' EUR';
-  el('offered-rate').textContent = '1 EUR = ' + active.offeredRate + ' USD';
+  el('source-amount').textContent = active.sourceAmount + ' ' + active.sourceCurrency;
+  el('offered-rate').textContent = '1 ' + active.sourceCurrency + ' = ' + active.offeredRate + ' ' + active.targetCurrency;
+  el('review-target-currency').textContent=active.targetCurrency;
+  el('quote-direction').textContent=active.sourceCurrency+' → '+active.targetCurrency;
+  showQuotedWallets();
   el('confidence').textContent = active.confidence.label + ' · ' + active.confidence.score + '/100';
   el('quote-id').textContent = active.quoteId; el('lookup-id').value = active.quoteId;
   el('reasons').replaceChildren(...active.confidence.reasons.map(reason => { const li = document.createElement('li'); li.textContent = reason; return li; }));
@@ -68,10 +112,10 @@ function show(view) {
   }
 }
 el('quote-form').addEventListener('submit', async event => {
-  event.preventDefault(); if(busy) return; el('create').disabled = true; el('message').hidden = true;
+  event.preventDefault(); if(busy) return; busy=true; el('create').disabled = true; el('message').hidden = true;
   try {
-    show(await api('/quotes', {method:'POST', body:JSON.stringify({sourceCurrency:'EUR',targetCurrency:'USD',sourceAmount:el('amount').value,sourceWalletId:el('source-wallet').value.trim(),targetWalletId:el('target-wallet').value.trim()})}));
-  } catch(error) { message(error.message); } finally { el('create').disabled = false; }
+    show(await api('/quotes', {method:'POST', body:JSON.stringify({...selectedDirection(),sourceAmount:el('amount').value,sourceWalletId:el('source-wallet').value.trim(),targetWalletId:el('target-wallet').value.trim()})}));
+  } catch(error) { message(error.message); } finally { busy=false; populateWallets(); tick(); }
 });
 async function load(id) { if(busy) return; try { show(await api('/quotes/' + encodeURIComponent(id))); } catch(error) { message(error.message); } }
 el('lookup-form').addEventListener('submit',event => { event.preventDefault(); load(el('lookup-id').value.trim()); });
@@ -93,16 +137,14 @@ el('accept').addEventListener('click',async () => {
     confirmedSettlements.set(quote.quoteId, result);
 
     showSettlementConfirmation(result);
-  } catch(error) { message(error.message); } finally { busy=false; el('create').disabled=false; tick(); }
+  } catch(error) { message(error.message); } finally { busy=false; populateWallets(); tick(); }
 });
 async function loadWallets() {
   try {
-    const options=await api('/wallets/quote-options');
-    for(const [id,currency,debit] of [['source-wallet','EUR',true],['target-wallet','USD',false]]) {
-      const matching=options.filter(w => w.currency === currency && (!debit || w.canDebit));
-      el(id).replaceChildren(...matching.map(w => { const option=document.createElement('option'); option.value=w.walletId; option.textContent=w.label; return option; }));
-      if(!matching.length) message('No eligible ' + currency + ' account is currently available.');
-    }
+    walletOptions=await api('/wallets/quote-options');
+    walletsLoaded=true;
+    updateDirectionUi();
+    showQuotedWallets();
   } catch(error) { message(error.message); el('create').disabled=true; }
 }
 loadWallets();

@@ -1,5 +1,9 @@
 server:
   port: ${PORT:8082}
+  servlet:
+    session:
+      cookie:
+        name: FXLOCK_M2_SESSION
 spring:
   application:
     name: quote-service
@@ -12,6 +16,9 @@ spring:
     init:
       mode: never
 fxlock:
+  dashboard-url: ${FXLOCK_DASHBOARD_URL:http://localhost:8083}
+  account-service-url: ${FXLOCK_ACCOUNT_SERVICE_URL:http://localhost:8083}
+  internal-token: ${FX_INTERNAL_TOKEN:}
   demo-password: ${DEMO_PASSWORD:learn-fxlock}
   rate-base-url: ${RATE_BASE_URL:}
   settlement-base-url: ${SETTLEMENT_BASE_URL:}

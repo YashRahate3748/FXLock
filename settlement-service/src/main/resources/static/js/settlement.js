@@ -1,5 +1,11 @@
 "use strict";
 
+const dashboardOrigin = document.querySelector('meta[name="dashboard-url"]')?.content;
+if (dashboardOrigin) {
+    document.getElementById("dashboardLink").href = new URL("/dashboard/", dashboardOrigin).toString();
+    document.getElementById("historyLink").href = new URL("/dashboard/history/", dashboardOrigin).toString();
+}
+
 const elements = {
     form: document.getElementById("lookupForm"),
     input: document.getElementById("settlementId"),
@@ -176,12 +182,12 @@ setText(
 
 setText(
     "sourceWalletBalance",
-    money(debitEntry?.currentWalletBalance, data.sourceCurrency)
+    debitEntry ? money(debitEntry.currentWalletBalance, data.sourceCurrency) : "Not shared (another customer's wallet)"
 );
 
 setText(
     "targetWalletBalance",
-    money(creditEntry?.currentWalletBalance, data.targetCurrency)
+    creditEntry ? money(creditEntry.currentWalletBalance, data.targetCurrency) : "Not shared (another customer's wallet)"
 );
 
     renderLedger(data.ledgerEntries);

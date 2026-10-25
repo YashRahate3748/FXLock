@@ -1,5 +1,36 @@
 # FXLock — Settlement Service (M3)
 
+For the combined application, follow the [repository-root launcher instructions](../README.md):
+run `configure-fxlock.cmd` once, then `run-fxlock.cmd -Build -PlaintextAccountDemo`. The launcher runs
+M3 with `integration`, M2 with `team`, and M1 with its provider configuration,
+using the same existing Oracle datasource. M3's integration settlement and receipt
+endpoints require `X-Internal-Token` and `X-Customer-Ref` supplied by M2's backend.
+They delegate to the existing financial services and resolve the signed-in customer
+instead of simulating CUST001. `/internal/health` checks database connectivity and
+the existing account table without modifying data. Never enable `local` together
+with `integration`. The older milestone notes below describe standalone local
+development and do not represent the current combined application setup.
+
+## Account registration and login ownership
+
+M3 owns `/internal/accounts/register` and `/internal/accounts/verify`, protected
+by `X-Internal-Token`. The renamed account column is `LOGIN_PASSWORD`.
+The explicit `integration,plaintext-account-demo` profile stores and compares
+passwords exactly as submitted, with no BCrypt or other password transformation.
+**This intentionally unsafe mode is for disposable local demonstrations only;
+never use real passwords or deploy it.** Other profiles disable account password
+operations rather than using plaintext silently. Existing hashed rows need an
+explicit reset. No reset, SQL or migration is executed automatically.
+
+See [plaintext account demo setup](docs/plaintext-account-demo.md) for the launcher
+switch, existing-account limitations, isolated tests and manual verification.
+M2 now offers database email login and a Sign up form that asks for name, email,
+password and confirmation. M2 calls these backend endpoints using the shared token;
+M3 owns persistence and verifies the exact password. The verified customer reference
+controls wallet ownership. Existing financial behavior remains unchanged.
+
+## Earlier standalone milestone notes
+
 This service owns wallets and settlement for FXLock. The current milestone provides a working wallet balance API backed by local Oracle. Settlement execution is still to be implemented.
 
 ## Current progress

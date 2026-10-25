@@ -64,7 +64,14 @@ class QuoteServiceTest {
         assertThat(service.create(request("100000"),"customer-demo").sourceAmount()).isEqualByComparingTo("100000");
     }
     @Test void rejectsUnsupportedDirection() {
-        fails("UNSUPPORTED_PAIR",() -> service.create(new CreateQuoteRequest("USD","EUR",new BigDecimal("100"),"2","1"),"customer-demo"));
+        fails("UNSUPPORTED_PAIR",() -> service.create(new CreateQuoteRequest("USD","USD",new BigDecimal("100"),"2","1"),"customer-demo"));
+    }
+    @Test void reverseDirectionUsesReciprocalThenTheExistingSpreadAndRounding() {
+        Quote quote=service.create(new CreateQuoteRequest("USD","EUR",new BigDecimal("100"),"2","1"),"customer-demo");
+        assertThat(quote.marketRate()).isEqualByComparingTo("0.8547008547");
+        assertThat(quote.offeredRate()).isEqualByComparingTo("0.8529914530");
+        assertThat(quote.targetAmount()).isEqualByComparingTo("85.30");
+        assertThat(service.get(quote.quoteId(),"customer-demo").sourceCurrency()).isEqualTo("USD");
     }
     @Test void validatesSourceOwnershipBeforeIssuingQuote() {
         fails("INVALID_WALLETS",() -> service.create(new CreateQuoteRequest("EUR","USD",new BigDecimal("100"),"3","2"),"customer-demo"));

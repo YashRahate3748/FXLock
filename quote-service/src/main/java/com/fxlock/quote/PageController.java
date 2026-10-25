@@ -12,7 +12,11 @@ public class PageController {
     private final DatabaseConfig config;
     public PageController(Environment environment,DatabaseConfig config) { this.environment=environment; this.config=config; }
     @GetMapping("/") String home(Model model,Principal principal) {
-        model.addAttribute("demo",environment.acceptsProfiles(Profiles.of("demo","oracle-local")));
+        model.addAttribute("demo",environment.acceptsProfiles(Profiles.of("demo")));
+        model.addAttribute("integrated",environment.acceptsProfiles(Profiles.of("team","oracle-local")));
+        String dashboard=environment.getProperty("fxlock.dashboard-url","http://localhost:8083");
+        model.addAttribute("dashboardUrl",dashboard+"/dashboard/");
+        model.addAttribute("historyUrl",dashboard+"/dashboard/history/");
         model.addAttribute("customer",principal.getName());
         var settings=config.current();
         model.addAttribute("minAmount",settings.minAmount()); model.addAttribute("maxAmount",settings.maxAmount());

@@ -9,8 +9,8 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 public final class Models {
     private Models() {}
     public record CreateQuoteRequest(
-        @NotBlank @Pattern(regexp="EUR") String sourceCurrency,
-        @NotBlank @Pattern(regexp="USD") String targetCurrency,
+        @NotBlank @Pattern(regexp="EUR|USD") String sourceCurrency,
+        @NotBlank @Pattern(regexp="EUR|USD") String targetCurrency,
         @NotNull @DecimalMin(value="0", inclusive=false) @Digits(integer=10, fraction=2) BigDecimal sourceAmount,
         @NotBlank @Size(max=80) String sourceWalletId,
         @NotBlank @Size(max=80) String targetWalletId

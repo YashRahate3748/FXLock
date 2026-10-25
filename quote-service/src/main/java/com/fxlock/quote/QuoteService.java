@@ -22,27 +22,34 @@ public class QuoteService {
     }
     @Transactional
     public Quote create(CreateQuoteRequest request,String customer) {
-        if (!"EUR".equals(request.sourceCurrency()) || !"USD".equals(request.targetCurrency()))
-            throw new QuoteException(422,"UNSUPPORTED_PAIR","Only EUR to USD is enabled in this prototype.");
+        boolean forward = "EUR".equals(request.sourceCurrency()) && "USD".equals(request.targetCurrency());
+        boolean reverse = "USD".equals(request.sourceCurrency()) && "EUR".equals(request.targetCurrency());
+        if (!forward && !reverse)
+            throw new QuoteException(422,"UNSUPPORTED_PAIR","Choose EUR to USD or USD to EUR.");
         var settings=config.current();
         BigDecimal amount;
         try { amount=request.sourceAmount().setScale(2,RoundingMode.UNNECESSARY); }
         catch(ArithmeticException e) { throw new QuoteException(422,"INVALID_AMOUNT","Use at most two decimal places."); }
         if (amount.compareTo(settings.minAmount())<0 || amount.compareTo(settings.maxAmount())>0)
-            throw new QuoteException(422,"AMOUNT_OUT_OF_RANGE","Amount must be between "+settings.minAmount()+" and "+settings.maxAmount()+" EUR.");
+            throw new QuoteException(422,"AMOUNT_OUT_OF_RANGE","Amount must be between "+settings.minAmount()+" and "+settings.maxAmount()+" "+request.sourceCurrency()+".");
         if (request.sourceWalletId().equals(request.targetWalletId()))
             throw new QuoteException(422,"INVALID_WALLETS","Choose different source and destination wallets.");
         var available=wallets.options(customer);
-        if (available==null || available.stream().noneMatch(w -> request.sourceWalletId().equals(w.walletId()) && "EUR".equals(w.currency()) && w.canDebit())
-            || available.stream().noneMatch(w -> request.targetWalletId().equals(w.walletId()) && "USD".equals(w.currency())))
-            throw new QuoteException(422,"INVALID_WALLETS","Choose an eligible sender EUR wallet and beneficiary USD wallet.");
+        if (available==null || available.stream().noneMatch(w -> request.sourceWalletId().equals(w.walletId()) && request.sourceCurrency().equals(w.currency()) && w.canDebit())
+            || available.stream().noneMatch(w -> request.targetWalletId().equals(w.walletId()) && request.targetCurrency().equals(w.currency())))
+            throw new QuoteException(422,"INVALID_WALLETS","Choose your own source wallet and an eligible destination in the other currency.");
         TrustedRate rate=rates.trustedRate();
         // Obtain time after the HTTP call. A slow upstream response must not hide rate ageing.
         Instant now=clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         pricing.validate(rate,now,settings);
-        BigDecimal offered=pricing.offeredRate(rate.rate(),settings);
-        Quote q=new Quote(UUID.randomUUID().toString(),Long.toString(repository.customerId(customer)),request.sourceWalletId(),request.targetWalletId(),"EUR","USD",
-            rate.snapshotId(),rate.observedAt(),rate.rate().setScale(10,RoundingMode.HALF_EVEN),offered,amount,
+        // Validate M1's original EUR/USD observation before deriving a reverse-direction rate.
+        BigDecimal market = forward ? rate.rate().setScale(10,RoundingMode.HALF_EVEN)
+            : BigDecimal.ONE.divide(rate.rate(),10,RoundingMode.HALF_EVEN);
+        if (market.signum() <= 0 || market.compareTo(new BigDecimal("10000000000")) >= 0)
+            throw new QuoteException(503,"RATE_UNAVAILABLE","The directional rate cannot be represented by the quote schema.");
+        BigDecimal offered=pricing.offeredRate(market,settings);
+        Quote q=new Quote(UUID.randomUUID().toString(),Long.toString(repository.customerId(customer)),request.sourceWalletId(),request.targetWalletId(),request.sourceCurrency(),request.targetCurrency(),
+            rate.snapshotId(),rate.observedAt(),market,offered,amount,
             pricing.targetAmount(amount,offered),settings.spreadBps(),pricing.confidence(rate,now,settings),now,now.plusSeconds(settings.quoteSeconds()),"OPEN");
         repository.insert(q); repository.audit(q,"QUOTE_CREATED",now); return q;
     }

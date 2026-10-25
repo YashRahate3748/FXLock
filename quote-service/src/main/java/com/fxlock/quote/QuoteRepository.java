@@ -6,26 +6,56 @@ import java.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import static com.fxlock.quote.Models.*;
 
 @Repository
 public class QuoteRepository {
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
-    public QuoteRepository(JdbcTemplate jdbc, ObjectMapper json) { this.jdbc=jdbc; this.json=json; }
-    // Server-side training aliases. Request JSON cannot choose the customer.
+    private final boolean demo;
+    public QuoteRepository(JdbcTemplate jdbc, ObjectMapper json, Environment environment) {
+        this.jdbc=jdbc; this.json=json; this.demo=environment.acceptsProfiles(Profiles.of("demo"));
+    }
+    // A verified browser principal is already the real customer reference.
+    static String customerRef(String principal) {
+        return principal;
+    }
     public long customerId(String principal) {
-        String ref=switch(principal) { case "customer-demo" -> "CUST001"; case "customer-other" -> "CUST002"; default -> principal; };
-        var ids=jdbc.queryForList("SELECT CUSTOMER_ID FROM CUSTOMER WHERE CUSTOMER_REF=? AND STATUS='ACTIVE'",Long.class,ref);
+        // Synthetic aliases remain confined to the isolated H2 demo profile.
+        String ref=demo ? switch(principal) { case "customer-demo" -> "CUST001"; case "customer-other" -> "CUST002"; default -> principal; } : principal;
+        String sql = demo ? "SELECT CUSTOMER_ID FROM CUSTOMER WHERE CUSTOMER_REF=? AND STATUS='ACTIVE'" : """
+            SELECT c.customer_id FROM customer c
+            JOIN customer_account a ON a.customer_id=c.customer_id
+            WHERE c.customer_ref=? AND c.status='ACTIVE' AND a.account_status='ACTIVE'
+            """;
+        var ids=jdbc.queryForList(sql,Long.class,ref);
         if (ids.size()!=1) throw new QuoteException(403,"CUSTOMER_UNAVAILABLE","No active customer is mapped to this login.");
         return ids.getFirst();
     }
     public List<WalletOption> wallets(String principal) {
+        long sender = customerId(principal);
+        if (demo) {
         return jdbc.query("""
             SELECT WALLET_ID,CURRENCY_CODE FROM WALLET
             WHERE CUSTOMER_ID=? AND STATUS='ACTIVE' ORDER BY WALLET_ID
-            """,(rs,n) -> new WalletOption(rs.getString("WALLET_ID"),"My "+rs.getString("CURRENCY_CODE")+" wallet",
-                rs.getString("CURRENCY_CODE"),"EUR".equals(rs.getString("CURRENCY_CODE"))),customerId(principal));
+            """,(rs,n) -> new WalletOption(id(rs,"WALLET_ID"),"My "+rs.getString("CURRENCY_CODE")+" wallet",
+                rs.getString("CURRENCY_CODE"),true),sender);
+        }
+        return jdbc.query("""
+            SELECT w.wallet_id,w.customer_id,w.currency_code,c.customer_ref,c.full_name
+            FROM wallet w JOIN customer c ON c.customer_id=w.customer_id
+            JOIN customer_account a ON a.customer_id=c.customer_id
+            WHERE w.status='ACTIVE' AND c.status='ACTIVE' AND a.account_status='ACTIVE'
+              AND w.currency_code IN ('EUR','USD')
+            ORDER BY CASE WHEN w.customer_id=? THEN 0 ELSE 1 END,c.customer_ref,w.currency_code,w.wallet_id
+            """, (rs,n) -> {
+                boolean own=rs.getLong("customer_id")==sender;
+                String currency=rs.getString("currency_code");
+                String label=own ? "My "+currency+" wallet" : rs.getString("full_name")+" ("+rs.getString("customer_ref")+") - "+currency+" wallet";
+                return new WalletOption(id(rs,"wallet_id"),label,currency,own);
+            }, sender);
     }
     public void insert(Quote q) {
         jdbc.update("""
@@ -87,13 +117,14 @@ public class QuoteRepository {
             reasons(rs.getString("CALCULATION_DETAILS")),rs.getBigDecimal("FRESHNESS_SCORE"),rs.getBigDecimal("ANOMALY_SCORE"),
             rs.getBigDecimal("PROVIDER_HEALTH_SCORE"),rs.getBigDecimal("STABILITY_SCORE"));
         var observed=rs.getObject("PROVIDER_TIMESTAMP",OffsetDateTime.class);
-        return new Quote(rs.getString("QUOTE_ID"),rs.getString("CUSTOMER_ID"),rs.getString("SOURCE_WALLET_ID"),rs.getString("TARGET_WALLET_ID"),
+        return new Quote(rs.getString("QUOTE_ID"),id(rs,"CUSTOMER_ID"),id(rs,"SOURCE_WALLET_ID"),id(rs,"TARGET_WALLET_ID"),
             rs.getString("SOURCE_CURRENCY"),rs.getString("TARGET_CURRENCY"),rs.getString("RATE_SNAPSHOT_ID"),
             observed==null?instant(rs,"RECEIVED_AT"):observed.toInstant(),rs.getBigDecimal("MARKET_RATE"),rs.getBigDecimal("CUSTOMER_RATE").setScale(10),
             rs.getBigDecimal("SOURCE_AMOUNT").setScale(2),rs.getBigDecimal("TARGET_AMOUNT").setScale(2),rs.getBigDecimal("APPLIED_SPREAD_BPS"),confidence,
             instant(rs,"CREATED_AT"),instant(rs,"EXPIRES_AT"),rs.getString("STATUS"));
     }
     private static OffsetDateTime utc(Instant time) { return time.atOffset(ZoneOffset.UTC); }
+    private static String id(ResultSet rs,String column) throws SQLException { return rs.getBigDecimal(column).toBigIntegerExact().toString(); }
     private static Instant instant(ResultSet rs,String column) throws SQLException {
         var value=rs.getObject(column,OffsetDateTime.class);
         if(value==null) throw new SQLException("Missing timestamp: "+column);

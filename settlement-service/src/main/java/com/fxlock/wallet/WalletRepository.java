@@ -44,13 +44,13 @@ public class WalletRepository {
     // Must be called inside the settlement transaction.
     public Optional<LockedWallet> findByIdForUpdate(Long walletId) {
         String sql = """
-                SELECT wallet_id,
-                       customer_id,
-                       currency_code,
-                       balance,
-                       status
-                FROM wallet
-                WHERE wallet_id = ?
+                SELECT w.wallet_id,
+                       w.customer_id,
+                       w.currency_code,
+                       w.balance,
+                       w.status
+                FROM wallet w
+                WHERE w.wallet_id = ?
                 FOR UPDATE
                 """;
 
@@ -83,6 +83,16 @@ public class WalletRepository {
                 """;
 
         return jdbcTemplate.update(sql, amount, walletId, amount);
+    }
+
+    /** Recheck both participants after acquiring the wallet locks, without locking customer rows. */
+    public boolean activeAccount(Long customerId) {
+        Integer count=jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM customer c
+                JOIN customer_account a ON a.customer_id=c.customer_id
+                WHERE c.customer_id=? AND c.status='ACTIVE' AND a.account_status='ACTIVE'
+                """, Integer.class, customerId);
+        return count != null && count == 1;
     }
 
     public int credit(Long walletId, BigDecimal amount) {

@@ -25,7 +25,7 @@ public class SettlementDetailsService {
             String settlementId,
             String customerRef) {
 
-        // Resolve the receipt only through the current customer's records.
+        // Both participants may read the receipt; wallet balances below remain viewer-owned.
         List<SettlementDetailsResponse> receipts =
                 jdbcTemplate.query(
                         """
@@ -45,7 +45,12 @@ public class SettlementDetailsService {
                             q.expires_at AS quote_expires_at
                         FROM settlement s
                         JOIN customer c
-                            ON c.customer_id = s.customer_id
+                            ON (c.customer_id=s.customer_id OR EXISTS (
+                                SELECT 1 FROM wallet_ledger participant
+                                JOIN wallet pw ON pw.wallet_id=participant.wallet_id
+                                WHERE participant.settlement_id=s.settlement_id
+                                  AND pw.customer_id=c.customer_id AND s.status='COMPLETED'))
+                        JOIN customer_account a ON a.customer_id=c.customer_id AND a.account_status='ACTIVE'
                         JOIN fx_quote q
                             ON q.quote_id = s.quote_id
                            AND q.customer_id = s.customer_id
@@ -100,11 +105,10 @@ public class SettlementDetailsService {
                 FROM wallet_ledger l
                 JOIN settlement s
                     ON s.settlement_id = l.settlement_id
-                JOIN customer c
-                    ON c.customer_id = s.customer_id
                 JOIN wallet w
                     ON w.wallet_id = l.wallet_id
-                   AND w.customer_id = c.customer_id
+                JOIN customer c
+                    ON c.customer_id = w.customer_id
                 WHERE s.settlement_id = ?
                   AND c.customer_ref = ?
                   AND c.status = 'ACTIVE'
