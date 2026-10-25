@@ -119,6 +119,10 @@ export async function configuration(env, { prompt = ask, secret = askSecret, sig
     FXLOCK_SETTLEMENT_PORT: String(ports.settlement), EUREKA_ENABLED: 'false',
     SPRING_SQL_INIT_MODE: 'never', SPRING_JPA_HIBERNATE_DDL_AUTO: 'validate',
   }
+  console.log('Service username:', childEnv.FXLOCK_SERVICE_USERNAME);
+  console.log('Service password:', childEnv.FXLOCK_SERVICE_PASSWORD);
+  console.log('Risk username:', childEnv.FXLOCK_RISK_USERNAME);
+  console.log('Risk password:', childEnv.FXLOCK_RISK_PASSWORD);
   const secrets = [...new Set(Object.entries(childEnv).filter(([key]) => /PASSWORD|TOKEN|API_KEY/.test(key)).map(([, value]) => value).filter(Boolean))]
   return { ports, env: childEnv, secrets, timeoutMs: timeoutSeconds * 1000 }
 }
