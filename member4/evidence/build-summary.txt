@@ -1,0 +1,8 @@
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.922 s -- in com.example.events.OutboxWorkerTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 5
+[INFO] fx-member4 ......................................... SUCCESS [  1.366 s]
+[INFO] event-contract ..................................... SUCCESS [  1.802 s]
+[INFO] eureka-server ...................................... SUCCESS [  4.159 s]
+[INFO] event-service ...................................... SUCCESS [  6.235 s]
+[INFO] BUILD SUCCESS
+[INFO] Total time:  13.982 s

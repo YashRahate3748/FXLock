@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FX operations history</title>
+<style>
+body{font:15px system-ui;background:#f3f5fa;color:#172740;margin:0}main{max-width:1400px;margin:auto;padding:32px}
+h1{margin-bottom:5px}p{color:#50617a}section{background:white;border-radius:12px;margin:24px 0;padding:22px;overflow:auto}
+input,select,button{padding:9px;margin:5px;border:1px solid #bdc9d8;border-radius:5px}button{cursor:pointer;background:#173e77;color:white}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:10px;text-align:left;border-bottom:1px solid #e0e6ee;vertical-align:top;max-width:320px;overflow-wrap:anywhere}
+pre{white-space:pre-wrap;overflow-wrap:anywhere}#error{color:#a52222}label{display:inline-block}
+</style></head><body><main>
+<h1>FX operations</h1><p>Audit history, publication status and retry details · Times shown as returned by the service.</p>
+<p id="error" role="alert"></p>
+<section><h2>Publication status</h2><label>Status <select id="status"><option value="">All</option><option>PENDING</option><option>IN_FLIGHT</option><option>PUBLISHED</option></select></label>
+<button id="refreshOutbox">Refresh</button><button id="prevOutbox">Previous</button><button id="nextOutbox">Next</button><span id="outboxPage"></span>
+<div id="outbox"></div></section>
+<section><h2>Audit history</h2><label>Aggregate ID <input id="aggregate" placeholder="Payment ID or currency pair"></label>
+<button id="refreshAudit">Search / refresh</button><button id="prevAudit">Previous</button><button id="nextAudit">Next</button><span id="auditPage"></span>
+<div id="audit"></div><h3>Selected event</h3><pre id="detail">Select an event ID to inspect the envelope.</pre></section>
+</main><script src="app.js"></script></body></html>

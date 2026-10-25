@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Direct Maven Central access. Contains no proxies, mirrors or credentials.
+     Select this as BOTH user and global settings for this project's direct-network build.
+     If your network requires a proxy, supply working proxy settings instead. -->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+  <offline>false</offline>
+</settings>

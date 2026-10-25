@@ -1,0 +1,46 @@
+name: member4-native
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_lab_checks:
+        description: Run against dedicated Oracle schema and existing Kafka; apps must be stopped
+        type: boolean
+        default: false
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '25', cache: maven}
+      - run: mvn -B clean verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-and-unit-evidence
+          path: |
+            **/target/surefire-reports/
+            **/target/*.war
+  lab-integration:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_lab_checks
+    needs: build
+    runs-on: [self-hosted, Windows, fx-lab]
+    environment: fx-lab
+    env:
+      RUN_INFRA_TESTS: 'true'
+      ORACLE_URL: ${{ secrets.ORACLE_URL }}
+      ORACLE_USER: ${{ secrets.ORACLE_USER }}
+      ORACLE_PASSWORD: ${{ secrets.ORACLE_PASSWORD }}
+      KAFKA_BOOTSTRAP_SERVERS: ${{ vars.KAFKA_BOOTSTRAP_SERVERS || 'localhost:9092' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '25', cache: maven}
+      - run: mvn -B clean verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-lab-integration-evidence
+          path: '**/target/surefire-reports/'

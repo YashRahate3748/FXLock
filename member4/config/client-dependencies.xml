@@ -1,0 +1,18 @@
+<!-- In M1/M2/M3: use the same Boot parent, Java release and Cloud BOM as root pom.xml.
+     These entries belong INSIDE that service's <dependencies>. -->
+<dependencies>
+  <dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>com.example</groupId>
+    <artifactId>event-contract</artifactId>
+    <version>1.0.0</version>
+  </dependency>
+  <dependency>
+    <groupId>com.oracle.database.jdbc</groupId>
+    <artifactId>ojdbc11</artifactId>
+    <scope>runtime</scope>
+  </dependency>
+</dependencies>

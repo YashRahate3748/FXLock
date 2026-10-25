@@ -1,0 +1,15 @@
+# Copy/merge into EACH M1/M2/M3 service, changing the application name and port.
+# Proposed names: fx-rate-service:8081, fx-quote-service:8082, fx-payment-service:8083.
+spring:
+  application:
+    name: fx-payment-service
+server:
+  port: 8083
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    hostname: ${SERVICE_HOSTNAME:localhost}
+    prefer-ip-address: false
+    instance-id: ${spring.application.name}:${INSTANCE_ID:${random.uuid}}

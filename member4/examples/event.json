@@ -1,0 +1,10 @@
+{
+  "eventId": "6f8092ec-7082-43e2-ae5c-a0cd4e25d007",
+  "schemaVersion": 1,
+  "eventType": "fx-settlement-completed",
+  "aggregateId": "PAY-1001",
+  "source": "fx-payment-service",
+  "correlationId": "request-1001",
+  "occurredAt": "2026-10-25T10:00:00Z",
+  "payload": { "paymentId": "PAY-1001", "status": "SETTLED" }
+}

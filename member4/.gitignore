@@ -1,0 +1,7 @@
+**/target/
+.env
+scripts/env.local.ps1
+*.log
+evidence/*.json
+
+.local/

@@ -1,0 +1,60 @@
+server:
+  port: ${SERVER_PORT:8084}
+spring:
+  application:
+    name: event-service
+  datasource:
+    url: ${ORACLE_URL:jdbc:oracle:thin:@//localhost:1521/FREEPDB1}
+    username: system
+    password: thoke@123
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 10000
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      fail-fast: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 10000
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+    consumer:
+      group-id: fx-audit-v1
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      max-poll-records: 20
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+      missing-topics-fatal: false
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: false
+    hostname: ${SERVICE_HOSTNAME:localhost}
+    instance-id: ${spring.application.name}:${INSTANCE_ID:${random.uuid}}
+    ip-address: ${SERVICE_IP:127.0.0.1}
+    non-secure-port: ${ADVERTISED_PORT:${server.port}}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+fx:
+  poll-ms: ${OUTBOX_POLL_MS:1000}
+  partitions: ${KAFKA_PARTITIONS:3}
+  replicas: ${KAFKA_REPLICAS:1}
+  ops-user: ${OPS_USER:ops}
+  ops-password: ${OPS_PASSWORD}

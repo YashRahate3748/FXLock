@@ -1,0 +1,31 @@
+Member 4 — native local installation edition, 25 October 2026
+
+Configuration: Boot 4.1.2 / Cloud 2025.1.4 / Java 25 / Maven / executable WAR / YAML.
+The deployment files for container tooling have been removed. Setup uses the
+existing local ZooKeeper/Kafka installation and the existing Oracle database.
+Application endpoint defaults remain Kafka localhost:9092 and Eureka localhost:8761.
+The local Kafka 2.2 server.properties was read: ZooKeeper localhost:2181,
+listeners/advertised.listeners PLAINTEXT://localhost:9092. Broker configuration
+and installed services were not changed or started/stopped.
+
+The revised integration suite simulates an unreachable broker then republishes
+the retained row via the configured broker, without stopping local infrastructure.
+Actual broker outage/restart and crash acceptance have manual lab procedures.
+CI uses a native Windows build and optional existing self-hosted lab runner.
+
+Earlier WAR packaging and 3 unit tests passed. The final revised build result
+is saved in evidence/build-summary.txt. Five infrastructure tests remain gated
+behind RUN_INFRA_TESTS and were not run: no dedicated Oracle test credentials
+were provided. No live broker connectivity or lab acceptance is claimed.
+
+Earlier Eureka HTTP smoke was blocked by this host JDK's internal loopback-pipe
+SocketException (Invalid argument: connect). No application workaround was added.
+Temporary empty Maven settings were used for builds because the user's configured
+proxy could not resolve; user settings were not edited.
+
+The ZIP contains sources/config/docs/tests, excluding target folders and the
+private scripts/env.local.ps1. Build locally after extracting the archive.
+
+Revised checks: all four YAML files parsed; environment template and smoke script passed PowerShell syntax checks. Final build: SUCCESS; 3 unit tests passed, 5 infrastructure tests skipped.
+
+STS/POM repair: all POMs now include XML schema declarations and child ../pom.xml references. scripts/build.ps1 uses config/maven-direct.xml as both global and user settings. Verified clean install: BUILD SUCCESS; 3 unit tests passed, 5 infrastructure tests skipped, both WARs installed into the workspace test repository. STS UI markers require reimport/settings refresh as documented; the IDE itself was not changed.
