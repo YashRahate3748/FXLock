@@ -1,2 +1,0 @@
-# Preserve the supplied team's SQL byte-for-byte, including its line endings.
-sql/01_fxlock_schema.sql -text whitespace=cr-at-eol
