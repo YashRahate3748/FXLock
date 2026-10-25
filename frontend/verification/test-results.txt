@@ -1,0 +1,28 @@
+FXLock M2 React frontend verification - 25 October 2026
+Shared frontend baseline: fcad7e0 (origin/frontend)
+Backend baseline: 7208ab3 (feature-quote-service)
+All results below are latest reports across scoped verification runs.
+
+CustomerWorkspaceApiTest: tests=7, failures=0, errors=0, skipped=0
+OracleSchemaTest: tests=9, failures=0, errors=0, skipped=0
+ProfileGuardTest: tests=2, failures=0, errors=0, skipped=0
+QuoteApiTest: tests=9, failures=0, errors=0, skipped=0
+QuoteBrowserTest: tests=3, failures=0, errors=0, skipped=0
+QuoteServiceTest: tests=33, failures=0, errors=0, skipped=0
+ReactFrontendBrowserTest: tests=6, failures=0, errors=0, skipped=0
+ReactOracleReadOnlyPreviewTest: tests=1, failures=0, errors=0, skipped=0
+TransactionHistoryApiTest: tests=10, failures=0, errors=0, skipped=0
+TransactionHistoryBrowserTest: tests=4, failures=0, errors=0, skipped=0
+TransactionHistoryOracleApiTest: tests=3, failures=0, errors=0, skipped=0
+TransactionHistoryOracleTest: tests=5, failures=0, errors=0, skipped=0
+UpstreamContractTest: tests=9, failures=0, errors=0, skipped=0
+
+Java/API/Oracle/browser aggregate: 101 tests, 0 failures, 0 errors, 0 skips.
+Frontend decimal/input unit tests: 4 passed.
+Production build: passed. M2 lint: passed.
+Full shared frontend lint: 7 pre-existing errors in unchanged M1 files.
+Oracle proxy smoke check: login, owned balances, filtered history and unknown receipt 404 passed.
+No Oracle financial rows or schema objects created by frontend verification.
+Oracle history currently empty and trusted-rate preview unavailable; UI reports both honestly.
+No live M1-to-M3 settlement claimed. All six React journey tests used disposable H2 demo data.
+No GitHub push or main merge performed for this task.
