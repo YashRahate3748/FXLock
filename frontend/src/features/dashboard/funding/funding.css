@@ -1,0 +1,23 @@
+.customer-app .funding-actions { margin: 18px 0 28px; padding: 24px; }
+.customer-app .funding-actions .section-heading { margin-bottom: 10px; }
+.customer-app .funding-description { margin: 0 0 18px; line-height: 1.6; }
+.customer-app .funding-buttons, .customer-app .funding-dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.customer-app .funding-success { display:flex; align-items:flex-start; gap:12px; margin-top:16px; padding:18px 20px; border:1px solid #bce9cf; border-radius:14px; background:#eafff1; color:#275b43; }
+.customer-app .funding-success p { margin:5px 0; }
+.customer-app .funding-success small { overflow-wrap:anywhere; }
+.customer-app .funding-recovery { margin:14px 0; padding:14px 16px; border:1px solid #e8dced; border-radius:12px; background:#f8f3fb; }
+.customer-app .funding-recovery p { margin:0 0 10px; }
+.customer-app .funding-dialog { color:var(--ink, #351341); background:var(--white, #fff); border:1px solid #e7ddec; border-radius:22px; padding:30px; width:min(520px, calc(100vw - 32px)); max-height:calc(100dvh - 40px); overflow-y:auto; margin:auto; box-shadow:0 24px 80px rgb(53 19 65 / 22%); }
+.customer-app .funding-dialog::backdrop { background:rgb(35 13 45 / 48%); backdrop-filter:blur(3px); }
+.customer-app .funding-dialog-heading { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+.customer-app .funding-symbol { display:grid; place-items:center; width:44px; height:44px; border-radius:14px; background:#d1ffe6; color:#4d1b63; }
+.customer-app .funding-dialog h2 { font-size:28px; margin:8px 0 12px; line-height:1.2; letter-spacing:-.6px; }
+.customer-app .funding-dialog .field { margin:18px 0; }
+.customer-app .funding-dialog label { display:block; margin-bottom:8px; font-weight:600; }
+.customer-app .funding-dialog input, .customer-app .funding-dialog select { display:block; width:100%; box-sizing:border-box; font:inherit; border:1px solid #dfd3e6; background:#fff; color:#351341; border-radius:10px; padding:12px 13px; }
+.customer-app .funding-dialog input:focus, .customer-app .funding-dialog select:focus { outline:2px solid #a176b2; outline-offset:2px; }
+.customer-app .funding-dialog-actions { margin-top:22px; }
+.customer-app .funding-dialog .form-assurance { line-height:1.5; margin-top:18px; }
+@media(max-width:560px) { .customer-app .funding-dialog { padding:22px; } .customer-app .funding-buttons .button { flex:1; justify-content:center; } .customer-app .funding-dialog-actions .button { flex:1; justify-content:center; } }
+
+.customer-app .funding-actions.funding-feedback { margin:0 0 20px; padding:0; border:0; background:transparent; }

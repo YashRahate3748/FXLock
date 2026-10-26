@@ -1,0 +1,13 @@
+.customer-app .signup-link { width:100%; justify-content:center; box-sizing:border-box; }
+.customer-app .registration-success { margin:0 0 20px; padding:14px 16px; border:1px solid #bce9cf; background:#eafff1; color:#275b43; border-radius:12px; line-height:1.6; }
+.customer-app .registration-signin { margin-top:24px; color:#80688b; font-size:12px; }
+.customer-app .registration-signin a { color:#55216d; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
+.customer-app .registration-password-hint { margin:-9px 0 0; line-height:1.6; }
+.customer-app.login-page.registration-page { display:flex; flex-direction:column; min-height:100vh; }
+.customer-app.registration-page .registration-header { padding:32px 40px; }
+.customer-app.registration-page .login-form-wrap { flex:1; padding:24px 24px 32px; }
+.customer-app.registration-page .login-form-wrap > .back-link { position:absolute; top:44px; right:40px; }
+.customer-app.registration-page .registration-form { max-width:400px; width:100%; margin:auto; }
+.customer-app.registration-page .login-footnote { margin-top:32px; }
+.customer-app.registration-page .registration-form form { gap:18px; }
+@media(max-width:700px) { .customer-app.registration-page .registration-header { padding:24px 25px; } .customer-app.registration-page .login-form-wrap { padding:16px 25px 30px; } }

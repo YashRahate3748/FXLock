@@ -1,0 +1,13 @@
+.customer-app .wallet-recents { margin:18px 0; }
+.customer-app .wallet-recents-heading { display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin-bottom:10px; }
+.customer-app .wallet-recents-heading h3 { margin:0; font-size:13px; color:#55216d; }
+.customer-app .wallet-recents-heading > span { font-size:9px; color:#9c87a5; }
+.customer-app .wallet-recents-scroll { max-width:100%; overflow-x:auto; border:1px solid #eee5f2; border-radius:10px; }
+.customer-app .wallet-recents table { width:100%; min-width:0; font-size:10px; }
+.customer-app .wallet-recents th { padding:9px 10px; background:#f8f4fa; color:#80688b; font-weight:600; text-align:left; white-space:nowrap; }
+.customer-app .wallet-recents td { padding:10px; border-top:1px solid #eee5f2; line-height:1.5; vertical-align:top; }
+.customer-app .wallet-recents td:first-child { max-width:145px; color:#80688b; }
+.customer-app .wallet-recents td strong { display:block; font-weight:550; }
+.customer-app .wallet-recents td small { display:block; font-size:9px; color:#9c87a5; }
+.customer-app .wallet-recents td:last-child, .customer-app .wallet-recents th:last-child { text-align:right; white-space:nowrap; }
+.customer-app .wallet-recents-error { font-size:11px; color:#80688b; }
