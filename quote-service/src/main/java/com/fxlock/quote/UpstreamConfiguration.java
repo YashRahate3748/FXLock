@@ -16,6 +16,21 @@ import static com.fxlock.quote.Models.*;
 
 @Configuration
 public class UpstreamConfiguration {
+    private final org.springframework.cloud.client.discovery.DiscoveryClient discovery;
+    private final boolean discover;
+    public UpstreamConfiguration() { this.discovery=null;this.discover=false; }
+    @org.springframework.beans.factory.annotation.Autowired
+    public UpstreamConfiguration(org.springframework.cloud.client.discovery.DiscoveryClient discovery,
+       @Value("${fxlock.discovery.enabled:false}") boolean discover) {
+      this.discovery=discovery;this.discover=discover;
+    }
+    private String backend(String explicit,String name,String setting) {
+      if(!discover) return requiredUrl(explicit,setting);
+      var instances=discovery.getInstances(name);
+      if(instances.isEmpty()) throw new QuoteException(503,"SERVICE_UNAVAILABLE","No registered instance of "+name);
+      return instances.getFirst().getUri().toString();
+    }
+
     @Bean WalletGateway wallets(QuoteRepository repository) { return repository::wallets; }
     @Bean @Profile("demo") RateGateway demoRates(Clock clock,JdbcTemplate jdbc) {
         return () -> {
@@ -44,7 +59,7 @@ public class UpstreamConfiguration {
         @Value("${fxlock.rate-password}") String password) {
         return () -> {
             try {
-                var r=client(requiredUrl(policy.rateBaseUrl(),"RATE_BASE_URL"))
+                var r=client(backend(policy.rateBaseUrl(),"rate-service","RATE_BASE_URL"))
                     .defaultHeaders(h -> h.setBasicAuth(username,password)).build()
                     .get().uri("/api/v1/rates/trusted").retrieve().body(M1Response.class);
                 if(r==null || r.snapshotId()==null || !r.fresh() || !r.quotingEnabled() || !"EUR/USD".equals(r.currencyPair()))
@@ -69,7 +84,7 @@ public class UpstreamConfiguration {
         return (id,customer,key) -> {
             Quote quote=repository.owned(id,customer).orElseThrow(() -> new QuoteException(404,"QUOTE_NOT_FOUND","Quote not found for this customer."));
             try {
-                var builder=client(requiredUrl(policy.settlementBaseUrl(),"SETTLEMENT_BASE_URL"));
+                var builder=client(backend(policy.settlementBaseUrl(),"settlement-service","SETTLEMENT_BASE_URL"));
                 builder.defaultHeaders(headers -> {
                     headers.set("X-Internal-Token",token);
                     headers.set("X-Customer-Ref",QuoteRepository.customerRef(customer));
