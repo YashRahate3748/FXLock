@@ -1,6 +1,12 @@
-import React from "react";
-import RatesWorkspace from "../features/rates/RatesWorkspace";
-
+import { BrowserRouter } from "react-router-dom";
+import Providers from "./providers";
+import Router from "./router";
 export default function App() {
-  return <RatesWorkspace />;
+  return (
+    <BrowserRouter>
+      <Providers>
+        <Router />
+      </Providers>
+    </BrowserRouter>
+  );
 }
