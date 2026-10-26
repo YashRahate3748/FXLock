@@ -43,10 +43,14 @@ async function stopChild(child, closed) {
 }
 
 export async function runCommand(tool, args, { cwd, signal, capture = false } = {}) {
-  signal?.throwIfAborted()
   const invocation = tool === 'java' ? { command: 'java', args } : toolCommand(tool, args)
-  const child = spawn(invocation.command, invocation.args, {
-    cwd, windowsHide: true, stdio: ['ignore', capture ? 'pipe' : 'inherit', capture ? 'pipe' : 'inherit'],
+  return runExecutable(invocation.command, invocation.args, { cwd, signal, capture, label: tool })
+}
+
+export async function runExecutable(command, args, { cwd, env, signal, capture = false, label = 'Command' } = {}) {
+  signal?.throwIfAborted()
+  const child = spawn(command, args, {
+    cwd, env, windowsHide: true, stdio: ['ignore', capture ? 'pipe' : 'inherit', capture ? 'pipe' : 'inherit'],
   })
   let output = ''
   if (capture) {
@@ -59,8 +63,8 @@ export async function runCommand(tool, args, { cwd, signal, capture = false } = 
   signal?.addEventListener('abort', cancel, { once: true })
   try {
     await new Promise((resolve, reject) => {
-      child.once('error', () => reject(new Error(`${tool} could not start. Check its installation and PATH.`)))
-      child.once('close', (code) => code === 0 ? resolve() : reject(new Error(`${tool} failed (exit ${code ?? 'signal'}).`)))
+      child.once('error', () => reject(new Error(`${label} could not start. Check its installation and PATH.`)))
+      child.once('close', (code) => code === 0 ? resolve() : reject(new Error(`${label} failed (exit ${code ?? 'signal'}).`)))
     })
     signal?.throwIfAborted()
     if (stopError) throw stopError
@@ -127,6 +131,10 @@ export class ProcessGroup {
       signal?.throwIfAborted()
       this.assertRunning()
       try {
+        if (spec.probe) {
+          if (await spec.probe()) { this.assertRunning(); return }
+          throw new Error('Not ready')
+        }
         const timeout = AbortSignal.timeout(Math.min(2000, Math.max(1, deadline - Date.now())))
         const response = await fetch(spec.url, {
           headers: spec.headers || {}, redirect: 'error',

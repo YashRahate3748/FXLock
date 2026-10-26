@@ -3,10 +3,12 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "build": "node scripts/dev.mjs --build-only",
-    "test:launcher": "node --test scripts/tests/dev.test.mjs"
-  },
+  "dev": "node scripts/dev.mjs",
+  "build": "node scripts/dev.mjs --build-only",
+  "test:launcher": "node --test scripts/tests/dev.test.mjs scripts/tests/kafka-dev.test.mjs",
+  "dev:all": "node scripts/dev.mjs --start-kafka",
+  "dev:full": "node scripts/dev.mjs --start-kafka --with-frontend"
+},
   "engines": {
     "node": ">=22"
   }

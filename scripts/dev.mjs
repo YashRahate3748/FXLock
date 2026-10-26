@@ -5,17 +5,22 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildDashboard, repositoryRoot } from './build-dashboard.mjs'
 import { assertPortAvailable, ProcessGroup, runCommand, startServices } from './dev-tools.mjs'
+import { ensureKafka, endpoint, kafkaRuntime } from './kafka-dev.mjs'
+import { setTimeout as delay } from 'node:timers/promises'
 
-const services = ['rate-service', 'settlement-service', 'quote-service']
+const services = ['discovery-server', 'event-service', 'rate-service', 'settlement-service', 'quote-service']
 const safeTests = {
   'rate-service': 'RateValidationServiceTest,TrustedRateCacheTest',
   'settlement-service': 'FundingTransactionTest,CustomerTransferHistoryTest,HistoryApiTest,DashboardApiTest,DashboardBrowserFlowTest,SettlementApiTest,IntegrationSettlementApiTest,InternalCustomerResolverTest,LoginVerificationServiceTest,AccountPasswordProfileTest,PlaintextAccountServiceTest,PlaintextAccountApiTest',
 }
 
 export function parseOptions(args) {
-  const options = { build: true, buildOnly: false, check: false, test: false, help: false }
+  const options = { build: true, buildOnly: false, check: false, test: false, help: false, frontend: false, startKafka: false }
   for (const arg of args) {
     switch (arg.toLowerCase()) {
+      case '--with-frontend': options.frontend = true; break
+      case '--start-kafka': options.startKafka = true; break
+      case '--backend-only': options.frontend = false; break
       case '--no-build': options.build = false; break
       case '--build-only': options.buildOnly = true; break
       case '--check': case '-check': options.check = true; break
@@ -50,7 +55,7 @@ function ask(question, fallback, signal) {
 }
 
 function askSecret(question, signal) {
-  if (!process.stdin.isTTY || !process.stdin.setRawMode) throw new Error('Supply ORACLE_PASSWORD and TWELVE_DATA_API_KEY through your environment when no interactive terminal is available.')
+  if (!process.stdin.isTTY || !process.stdin.setRawMode) throw new Error('Supply ORACLE_PASSWORD, TWELVE_DATA_API_KEY and M4_OPS_PASSWORD through your environment when no interactive terminal is available.')
   signal?.throwIfAborted()
   return new Promise((resolve, reject) => {
     const wasRaw = process.stdin.isRaw
@@ -91,12 +96,15 @@ export async function configuration(env, { prompt = ask, secret = askSecret, sig
   const apiKey = first(env, ['TWELVE_DATA_API_KEY']) || await secret('Twelve Data API key', signal)
   if (!databaseUrl.startsWith('jdbc:oracle:thin:')) throw new Error('Use the existing Oracle thin JDBC URL.')
   if (!password || !apiKey) throw new Error('The existing Oracle password and Twelve Data API key are required.')
+  const opsPassword = first(env, ['M4_OPS_PASSWORD']) || await secret('Event Service operations password (choose one for local use)', signal)
+  if (!opsPassword.trim()) throw new Error('An Event Service operations password is required.')
   const ports = {
+    discovery: Number(env.FXLOCK_DISCOVERY_PORT || 8761), event: Number(env.FXLOCK_EVENT_PORT || 8084),
     rate: Number(env.FXLOCK_RATE_PORT || 8081), quote: Number(env.FXLOCK_QUOTE_PORT || 8082),
     settlement: Number(env.FXLOCK_SETTLEMENT_PORT || 8083), frontend: Number(env.FXLOCK_FRONTEND_PORT || 5173),
   }
   if (Object.values(ports).some((port) => !Number.isInteger(port) || port < 1 || port > 65535)
-    || new Set(Object.values(ports)).size !== 4) throw new Error('Choose four distinct valid service ports.')
+    || new Set(Object.values(ports)).size !== 6) throw new Error('Choose six distinct valid service ports.')
   const timeoutSeconds = Number(env.FXLOCK_STARTUP_TIMEOUT_SECONDS || 120)
   if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 1 || timeoutSeconds > 600) throw new Error('Startup timeout must be 1–600 seconds.')
   const random = () => randomBytes(32).toString('base64url')
@@ -116,13 +124,14 @@ export async function configuration(env, { prompt = ask, secret = askSecret, sig
     FXLOCK_ACCOUNT_SERVICE_URL: `http://127.0.0.1:${ports.settlement}`,
     FXLOCK_DASHBOARD_URL: `http://localhost:${ports.settlement}`,
     FXLOCK_QUOTE_BROWSER_URL: `http://localhost:${ports.quote}`,
-    FXLOCK_SETTLEMENT_PORT: String(ports.settlement), EUREKA_ENABLED: 'false',
+    FXLOCK_SETTLEMENT_PORT: String(ports.settlement), EUREKA_ENABLED: 'true',
+    EUREKA_URL: `http://127.0.0.1:${ports.discovery}/eureka/`,
+    KAFKA_BOOTSTRAP_SERVERS: first(env, ['KAFKA_BOOTSTRAP_SERVERS'], 'localhost:9092'),
+    M4_OPS_USERNAME: first(env, ['M4_OPS_USERNAME'], 'fxlock-ops'), M4_OPS_PASSWORD: opsPassword,
+    SPRING_PROFILES_ACTIVE: '', SPRING_BOOT_RUN_JVMARGUMENTS: '',
     SPRING_SQL_INIT_MODE: 'never', SPRING_JPA_HIBERNATE_DDL_AUTO: 'validate',
   }
-  console.log('Service username:', childEnv.FXLOCK_SERVICE_USERNAME);
-  console.log('Service password:', childEnv.FXLOCK_SERVICE_PASSWORD);
-  console.log('Risk username:', childEnv.FXLOCK_RISK_USERNAME);
-  console.log('Risk password:', childEnv.FXLOCK_RISK_PASSWORD);
+  endpoint(childEnv.KAFKA_BOOTSTRAP_SERVERS)
   const secrets = [...new Set(Object.entries(childEnv).filter(([key]) => /PASSWORD|TOKEN|API_KEY/.test(key)).map(([, value]) => value).filter(Boolean))]
   return { ports, env: childEnv, secrets, timeoutMs: timeoutSeconds * 1000 }
 }
@@ -138,20 +147,23 @@ export async function jarPath(root, service) {
   return jar
 }
 
-export async function servicePlan(root, config) {
-  const common = ['--server.address=127.0.0.1', '--eureka.client.enabled=false', '--spring.cloud.discovery.enabled=false',
+export async function servicePlan(root, config, { frontend = false } = {}) {
+  const common = ['--server.address=127.0.0.1', '--eureka.client.enabled=true', '--spring.cloud.discovery.enabled=true',
     '--spring.sql.init.mode=never', '--spring.jpa.hibernate.ddl-auto=validate']
   const definitions = [
-    ['settlement-service', config.ports.settlement, 'integration,plaintext-account-demo', '/internal/health'],
-    ['rate-service', config.ports.rate, 'default', '/actuator/health'],
-    ['quote-service', config.ports.quote, 'team', '/actuator/health'],
+    ['discovery-server', config.ports.discovery, 'default', '/'],
+    ['settlement-service', config.ports.settlement, 'integration,plaintext-account-demo,m4', '/internal/health'],
+    ['rate-service', config.ports.rate, 'm4', '/actuator/health'],
+    ['quote-service', config.ports.quote, 'team,m4', '/actuator/health'],
+    ['event-service', config.ports.event, 'default', '/actuator/health'],
   ]
   const specs = []
   for (const [name, port, profile, health] of definitions) {
-    specs.push({ name, command: 'java', args: ['-jar', await jarPath(root, name), `--spring.profiles.active=${profile}`, `--server.port=${port}`, ...common],
-      cwd: path.join(root, name), env: config.env, url: `http://127.0.0.1:${port}${health}`, jsonHealth: true,
+    specs.push({ name, command: 'java', args: ['-jar', await jarPath(root, name), `--spring.profiles.active=${profile}`, `--server.port=${port}`, ...(name === 'discovery-server' ? ['--server.address=127.0.0.1', '--eureka.client.enabled=true', '--spring.cloud.discovery.enabled=true', '--eureka.client.register-with-eureka=false', '--eureka.client.fetch-registry=false'] : common)],
+      cwd: path.join(root, name), env: config.env, url: `http://127.0.0.1:${port}${health}`, jsonHealth: name !== 'discovery-server',
       headers: name === 'settlement-service' ? { 'X-Internal-Token': config.env.FX_INTERNAL_TOKEN } : {} })
   }
+  if (!frontend) return specs
   const vite = path.join(root, 'frontend', 'node_modules', 'vite', 'bin', 'vite.js')
   try { await access(vite) } catch { throw new Error('Existing frontend dependencies are missing. No dependencies were installed automatically.') }
   specs.push({ name: 'frontend', command: process.execPath, args: [vite, '--host', '127.0.0.1', '--port', String(config.ports.frontend)],
@@ -167,8 +179,8 @@ async function checkTools(signal) {
 }
 
 async function build(options, signal) {
-  if (options.test) await runCommand('npm', ['test'], { cwd: path.join(repositoryRoot, 'frontend'), signal })
-  await buildDashboard({ signal })
+  if (options.frontend && options.test) await runCommand('npm', ['test'], { cwd: path.join(repositoryRoot, 'frontend'), signal })
+  if (options.frontend) await buildDashboard({ signal })
   for (const service of services) {
     console.log(`Building ${service} offline...`)
     const args = ['-o', options.test ? (safeTests[service] ? `-Dtest=${safeTests[service]}` : null) : '-DskipTests', 'package'].filter(Boolean)
@@ -180,10 +192,34 @@ async function build(options, signal) {
   }
 }
 
+
+export async function waitForRegistration(config, { signal, group, timeoutMs = config.timeoutMs } = {}) {
+  const expected = ['RATE-SERVICE', 'QUOTE-SERVICE', 'SETTLEMENT-SERVICE', 'EVENT-SERVICE']
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    signal?.throwIfAborted(); group?.assertRunning()
+    try {
+      const response = await fetch(`http://127.0.0.1:${config.ports.discovery}/eureka/apps`, { headers: { Accept: 'application/json' }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(2000)]) : AbortSignal.timeout(2000) })
+      if (response.ok) {
+        const body = await response.json()
+        let apps = body?.applications?.application || []
+        if (!Array.isArray(apps)) apps = [apps]
+        const names = apps.filter(app => {
+          const instances = Array.isArray(app.instance) ? app.instance : [app.instance]
+          return instances.some(instance => instance?.status === 'UP')
+        }).map(app => app.name)
+        if (expected.every(name => names.includes(name))) return
+      }
+    } catch { /* Wait for Eureka registration. */ }
+    await delay(500, undefined, { signal })
+  }
+  throw new Error('All four applications did not register UP with Eureka in time. Inspect the service logs.')
+}
+
 export async function main(args = process.argv.slice(2)) {
   const options = parseOptions(args)
   if (options.help) {
-    console.log('npm run dev [-- --no-build|--check]\nStarts M3, M1, M2 and Vite. Eureka stays disabled.\nnpm run build [-- --test] builds offline without starting services.\nMissing Oracle settings and provider key are prompted without saving secrets.\nNo PowerShell scripts, execution-policy changes, installs, migrations or seed scripts are run.')
+    console.log('npm run dev [-- --no-build] [--start-kafka] [--with-frontend]\nStarts Eureka, M3, M1, M2 and Event Service; frontend is optional.\n--start-kafka starts missing local Kafka/ZooKeeper using KAFKA_JAVA_HOME (Java 8).\nWithout it, reuse your running Kafka and existing five topics.\nnpm run build [-- --test] builds offline without starting services.\n--check validates tools, configuration, files and available app ports only; it does not start processes.\nSecrets are prompted and not saved. No Oracle migration/reset or package install is run.')
     return
   }
   const abort = new AbortController()
@@ -197,12 +233,19 @@ export async function main(args = process.argv.slice(2)) {
     console.log('Local demo: M3 uses the existing plaintext-account-demo profile. Use throwaway login passwords only.')
     console.log('PowerShell saved settings are not read. Missing credentials are prompted and are not saved.')
     const config = await configuration(process.env, { signal: abort.signal })
-    for (const port of Object.values(config.ports)) await assertPortAvailable(port)
+    if (options.startKafka) {
+      config.env.KAFKA_HOME ||= await ask('Kafka installation folder', 'C:\\kafka_2.12-2.2.0', abort.signal)
+      config.env.KAFKA_JAVA_HOME ||= await ask('Kafka Java 8 folder (C:\\Java_18 contains Java 8 on this machine)', 'C:\\Java_18', abort.signal)
+    }
+    for (const [name, port] of Object.entries(config.ports)) {
+      if (name !== 'frontend' || options.frontend) await assertPortAvailable(port)
+    }
     if (options.build && !options.check) await build(options, abort.signal)
-    const specs = await servicePlan(repositoryRoot, config)
-    await access(path.join(repositoryRoot, 'settlement-service', 'src', 'main', 'resources', 'static', 'dashboard', 'index.html'))
+    const specs = await servicePlan(repositoryRoot, config, options)
+    if (options.frontend) await access(path.join(repositoryRoot, 'settlement-service', 'src', 'main', 'resources', 'static', 'dashboard', 'index.html'))
     if (options.check) {
-      console.log('Preflight passed: Java 25, Maven, configuration, available ports, three jars, Vite and dashboard assets. No services or database connections were started.')
+      if (options.startKafka) await kafkaRuntime(config.env)
+      console.log('Preflight passed: Java 25, Maven, configuration, available app ports and five jars. No services or database connections were started. Kafka connectivity and Oracle schema are checked during actual startup.')
       return
     }
     const logDirectory = path.join(repositoryRoot, 'target', 'dev-runs', `${Date.now()}-${randomBytes(4).toString('hex')}`)
@@ -214,12 +257,15 @@ export async function main(args = process.argv.slice(2)) {
     })
     // Mark handled during sequential startup; group.ready also reports startup failures.
     stopped.catch(() => {})
+    await ensureKafka(config, group, { manage: options.startKafka, signal: abort.signal })
     await startServices(specs, group, { timeoutMs: config.timeoutMs, signal: abort.signal,
       onStarting: (spec) => console.log(`Starting ${spec.name}...`) })
+    await waitForRegistration(config, { signal: abort.signal, group })
     console.log(`FXLock ready. Login: http://localhost:${config.ports.quote}/login`)
     console.log(`Hosted dashboard: http://localhost:${config.ports.settlement}/dashboard/`)
-    console.log(`React development: http://localhost:${config.ports.frontend}/dashboard/ (open after logging in on M2)`)
-    console.log('Eureka is disabled. Press Ctrl+C here to stop all four processes.')
+    if (options.frontend) console.log(`React development: http://localhost:${config.ports.frontend}/dashboard/ (open after logging in on M2)`)
+    console.log(`Eureka: http://localhost:${config.ports.discovery} | Event APIs: http://localhost:${config.ports.event}/api/v1/operations/summary`)
+    console.log('Press Ctrl+C here to stop only processes started by this launcher. Reused Kafka/ZooKeeper stay running.')
     await stopped
   } finally {
     try { if (group) { await group.stop(); console.log('FXLock development processes stopped.') } }

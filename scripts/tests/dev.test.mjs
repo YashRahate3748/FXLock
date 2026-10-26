@@ -11,7 +11,7 @@ import { copyDashboard, repositoryRoot } from '../build-dashboard.mjs'
 
 const fixture = fileURLToPath(new URL('./dev-fixture.mjs', import.meta.url))
 const env = { ORACLE_JDBC_URL: 'jdbc:oracle:thin:@//fixture:1521/service', ORACLE_USERNAME: 'fixture-user',
-  ORACLE_PASSWORD: ' fixture-password ', TWELVE_DATA_API_KEY: 'fixture-provider-key' }
+  ORACLE_PASSWORD: ' fixture-password ', TWELVE_DATA_API_KEY: 'fixture-provider-key', M4_OPS_PASSWORD: 'fixture-operations-password' }
 
 async function directory() {
   const root = path.join(repositoryRoot, 'target', 'native-launcher-tests', randomUUID())
@@ -28,7 +28,7 @@ async function availablePort() {
 }
 
 async function fakeProject(root) {
-  for (const name of ['rate-service', 'quote-service', 'settlement-service']) {
+  for (const name of ['discovery-server', 'event-service', 'rate-service', 'quote-service', 'settlement-service']) {
     await mkdir(path.join(root, name, 'target'), { recursive: true })
     await writeFile(path.join(root, name, 'pom.xml'), `<project><parent><artifactId>parent</artifactId><version>3.5.16</version></parent><artifactId>${name}</artifactId><version>fixture</version></project>`)
     await writeFile(path.join(root, name, 'target', `${name}-fixture.jar`), '')
@@ -46,13 +46,13 @@ test('options support root npm usage and legacy cmd flags without execution-poli
   assert.throws(() => parseOptions(['-ExecutionPolicy']), /Unsupported option/)
 })
 
-test('configuration shares credentials, preserves password whitespace, disables Eureka and never changes parent environment', async () => {
+test('configuration shares credentials, preserves password whitespace, enables Eureka and never changes parent environment', async () => {
   const original = structuredClone(env)
   const config = await configuration(env)
   assert.deepEqual(env, original)
   assert.equal(config.env.SPRING_DATASOURCE_PASSWORD, ' fixture-password ')
   assert.equal(config.env.FXLOCK_DB_PASSWORD, config.env.ORACLE_PASSWORD)
-  assert.equal(config.env.EUREKA_ENABLED, 'false')
+  assert.equal(config.env.EUREKA_ENABLED, 'true')
   assert.equal(config.env.SPRING_SQL_INIT_MODE, 'never')
   assert.equal(config.env.SPRING_JPA_HIBERNATE_DDL_AUTO, 'validate')
   assert.ok(config.env.FX_INTERNAL_TOKEN.length >= 32)
@@ -67,7 +67,7 @@ test('missing settings use in-memory prompts; invalid ports and empty secrets ar
     prompt: async (label, fallback) => { prompts.push(label); return fallback },
     secret: async (label) => { prompts.push(label); return 'fixture-secret' },
   })
-  assert.equal(prompts.length, 4)
+  assert.equal(prompts.length, 5)
   assert.equal(config.env.ORACLE_USERNAME, 'FXLOCK')
   await assert.rejects(configuration({ ...env, FXLOCK_QUOTE_PORT: '8083' }), /distinct valid/)
   await assert.rejects(configuration({ ...env, FXLOCK_FRONTEND_PORT: '70000' }), /distinct valid/)
@@ -75,19 +75,19 @@ test('missing settings use in-memory prompts; invalid ports and empty secrets ar
   await assert.rejects(configuration({ ...env, FXLOCK_STARTUP_TIMEOUT_SECONDS: '0' }), /timeout/)
 })
 
-test('plan starts exactly three Java services and Vite; no Eureka, credentials in arguments, or PowerShell', async () => {
+test('plan starts five Java services with discovery; frontend is opt-in and credentials stay out of arguments', async () => {
   const root = await directory()
   await fakeProject(root)
   const config = await configuration(env)
   const specs = await servicePlan(root, config)
-  assert.deepEqual(specs.map((spec) => spec.name), ['settlement-service', 'rate-service', 'quote-service', 'frontend'])
+  assert.deepEqual(specs.map((spec) => spec.name), ['discovery-server', 'settlement-service', 'rate-service', 'quote-service', 'event-service'])
   assert.equal(await jarPath(root, 'quote-service'), path.join(root, 'quote-service', 'target', 'quote-service-fixture.jar'))
   for (const spec of specs) {
     assert.equal(spec.env.FX_INTERNAL_TOKEN, config.env.FX_INTERNAL_TOKEN)
     assert.doesNotMatch(JSON.stringify(spec.args), /fixture-password|fixture-provider-key|powershell|ExecutionPolicy/i)
-    if (spec.command === 'java') assert.ok(spec.args.includes('--eureka.client.enabled=false'))
+    if (spec.name !== 'discovery-server') assert.ok(spec.args.includes('--eureka.client.enabled=true'))
   }
-  assert.equal(specs[0].headers['X-Internal-Token'], config.env.FX_INTERNAL_TOKEN)
+  assert.equal(specs[1].headers['X-Internal-Token'], config.env.FX_INTERNAL_TOKEN)
 })
 
 test('dashboard copy preserves other static files and existing assets without deleting directories', async () => {
