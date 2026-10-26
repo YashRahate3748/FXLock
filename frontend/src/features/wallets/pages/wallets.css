@@ -1,0 +1,8 @@
+.customer-app .wallet-overview-page .wallet-top h2 { margin:0; font-size:15px; font-weight:550; }
+.customer-app .wallet-overview-details { margin:0 0 20px; padding:16px; background:#f8f4fa; border-radius:12px; }
+.customer-app .wallet-overview-details > div { display:flex; justify-content:space-between; gap:12px; margin:7px 0; font-size:11px; }
+.customer-app .wallet-overview-details dt { color:#9c87a5; }
+.customer-app .wallet-overview-details dd { margin:0; color:#633574; overflow-wrap:anywhere; }
+
+.customer-app .wallet-overview-page .wallet-card > a { font-size:19px; padding-top:26.6px; }
+.customer-app .wallet-overview-page .wallet-card > a > svg { width:32.3px; height:32.3px; }

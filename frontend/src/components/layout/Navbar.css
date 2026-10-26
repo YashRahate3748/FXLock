@@ -1,0 +1,9 @@
+.customer-app .profile-dropdown { position:relative; flex-shrink:0; }
+.customer-app .profile-trigger { border:0; background:transparent; padding:6px 0 6px 6px; font:inherit; text-align:left; cursor:pointer; border-radius:10px; }
+.customer-app .profile-trigger:focus-visible { outline:2px solid #a176b2; outline-offset:4px; }
+.customer-app .profile-chevron { transition:transform .15s ease; }
+.customer-app .profile-chevron.expanded { transform:rotate(180deg); }
+.customer-app .profile-menu { position:absolute; top:calc(100% + 12px); right:0; z-index:60; width:218px; max-width:calc(100vw - 40px); padding:8px; background:#fff; border:1px solid #e6daed; border-radius:14px; box-shadow:0 12px 35px rgb(53 19 65 / 14%); }
+.customer-app .profile-menu > a, .customer-app .profile-menu > button { display:flex; gap:11px; align-items:center; width:100%; box-sizing:border-box; padding:12px; border:0; border-radius:8px; background:transparent; color:#55216d; font:inherit; font-size:12px; text-decoration:none; text-align:left; cursor:pointer; }
+.customer-app .profile-menu > a:hover, .customer-app .profile-menu > button:hover, .customer-app .profile-menu > a:focus, .customer-app .profile-menu > button:focus { background:#f4edf8; outline:none; }
+.customer-app .profile-menu-divider { height:1px; background:#eee5f2; margin:5px 8px; }
