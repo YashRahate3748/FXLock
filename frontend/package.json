@@ -7,9 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "test:unit": "node --test tests/*.test.js",
-    "lint:m2": "eslint src/app src/components src/context src/lib src/features/auth src/features/dashboard src/features/exchange src/features/transactions src/hooks/useSession.js src/hooks/useCountdown.js src/services vite.config.js tests"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

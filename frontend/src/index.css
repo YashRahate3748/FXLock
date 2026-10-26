@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "./styles/m2.css";
 
 @theme {
   --color-brand-purple: #501B65;
