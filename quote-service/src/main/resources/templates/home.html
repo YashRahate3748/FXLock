@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="settlement-ui-base-url" th:content="${integrated} ? '' : 'http://localhost:8083'">
+    <meta name="csrf-token" th:content="${_csrf.token}">
+    <meta name="csrf-header" th:content="${_csrf.headerName}">
+
+    <title>FXLock · Your currency quote</title>
+
+    <link rel="stylesheet" href="/css/app.css">
+    <script defer src="/js/app.js"></script>
+</head>
+
+<body>
+    <header th:replace="~{fragments/common :: header}"></header>
+
+    <main>
+        <aside th:if="${demo}" class="notice">
+            Learning demo: market rates are synthetic.
+            M3 settlement is not connected; accepting a quote will not move money.
+        </aside>
+
+        <div class="intro">
+            <p id="direction-eyebrow" class="eyebrow">EUR → USD</p>
+            <h1>A clear amount before you commit.</h1>
+            <p>
+                Request a short-lived offer, review the exact amount,
+                and accept before it expires.
+            </p>
+        </div>
+
+        <div class="columns">
+            <section class="card">
+                <h2>Request your quote</h2>
+
+                <form id="quote-form">
+                    <label for="direction">Conversion direction</label>
+                    <select id="direction" required>
+                        <option value="EUR-USD">EUR → USD</option>
+                        <option value="USD-EUR">USD → EUR</option>
+                    </select>
+                    <label id="amount-label" for="amount">Amount in EUR</label>
+                    <input
+                        id="amount"
+                        name="amount"
+                        type="number"
+                        step="0.01"
+                        value="1000.00"
+                        required
+                        th:min="${minAmount}"
+                        th:max="${maxAmount}"
+                    >
+
+                    <p class="hint">
+                        Allowed range:
+                        <span th:text="${minAmount}"></span>–<span
+                            th:text="${maxAmount}"
+                        ></span> <span id="limit-currency">EUR</span>.
+                    </p>
+
+                    <label id="source-wallet-label" for="source-wallet">Sender EUR wallet</label>
+                    <select id="source-wallet" required>
+                        <option value="">Loading accounts…</option>
+                    </select>
+
+                    <label id="target-wallet-label" for="target-wallet">Destination USD wallet</label>
+                    <select id="target-wallet" required>
+                        <option value="">Loading accounts…</option>
+                    </select>
+
+                    <p class="hint">
+                        Choose your own source wallet and either your own destination
+                        or another eligible customer's wallet in the other currency.
+                        Balances and eligibility are checked again when the payment
+                        is processed.
+                    </p>
+
+                    <button id="create" type="submit">Get a quote</button>
+                </form>
+
+                <p class="hint">
+                    Configured spread:
+                    <span th:text="${spreadBps}"></span> basis points.
+                    All balances and payments in this prototype are simulated.
+                </p>
+
+                <details>
+                    <summary>Return to a quote</summary>
+
+                    <form id="lookup-form">
+                        <label for="lookup-id">Quote ID</label>
+                        <input id="lookup-id" required maxlength="36">
+                        <button class="quiet">Load quote</button>
+                    </form>
+                </details>
+            </section>
+
+            <section class="card" aria-labelledby="review-title">
+                <h2 id="review-title">Review your offer</h2>
+
+                <div id="empty">
+                    <p>Your fixed quote will appear here.</p>
+                    <p class="hint">
+                        The amount remains fixed until the quote expires,
+                        even if the market changes.
+                    </p>
+                </div>
+
+                <div id="review" hidden>
+                    <p>Destination receives</p>
+
+                    <div class="total">
+                        <span id="target-amount"></span>
+                        <small id="review-target-currency">USD</small>
+                    </div>
+
+                    <dl>
+                        <dt>FX direction</dt>
+                        <dd id="quote-direction"></dd>
+                        <dt>Source wallet</dt>
+                        <dd id="review-source-wallet"></dd>
+                        <dt>Destination wallet</dt>
+                        <dd id="review-target-wallet"></dd>
+                        <dt>You pay</dt>
+                        <dd id="source-amount"></dd>
+
+                        <dt>Offered rate</dt>
+                        <dd id="offered-rate"></dd>
+
+                        <dt>Status</dt>
+                        <dd id="quote-status"></dd>
+
+                        <dt>Time remaining</dt>
+                        <dd id="countdown"></dd>
+
+                        <dt>Quote confidence</dt>
+                        <dd id="confidence"></dd>
+                    </dl>
+
+                    <details open>
+                        <summary>Why this confidence score?</summary>
+                        <ul id="reasons"></ul>
+                        <p class="hint">
+                            Confidence describes the quality of the inputs.
+                            It does not predict the market or guarantee a payment.
+                        </p>
+                    </details>
+
+                    <div class="actions">
+                        <button id="accept">Accept quote</button>
+                        <button id="cancel" class="quiet">Cancel quote</button>
+                    </div>
+
+                    <p class="hint">This offer is for the wallets shown above. Request a new quote to change the destination.</p>
+
+                    <p class="hint">
+                        Keep this quote ID for history or retries:
+                        <span id="quote-id"></span>
+                    </p>
+                </div>
+            </section>
+        </div>
+
+        <div id="message" role="status" aria-live="polite" hidden></div>
+
+        <section id="result" class="card" hidden>
+            <h2>Settlement confirmed</h2>
+            <p id="result-text"></p>
+
+            <a
+                id="settlement-details-link"
+                class="settlement-details-link"
+                hidden
+            >
+                View settlement details
+            </a>
+
+            <p class="hint">
+                Review locked pricing, spread, wallet balances and ledger entries.
+            </p>
+        </section>
+
+        <footer th:replace="~{fragments/common :: footer}"></footer>
+    </main>
+</body>
+</html>

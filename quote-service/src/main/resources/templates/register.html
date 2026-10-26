@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create account | FXLock</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/account.css}">
+</head>
+<body>
+    <header><a class="brand" th:href="@{/}">FXLock</a></header>
+    <main class="account-page">
+        <section class="card" aria-labelledby="register-title">
+            <h1 id="register-title">Create account</h1>
+            <div class="notice" role="alert" th:if="${errors}">
+                <ul><li th:each="error : ${errors}" th:text="${error}"></li></ul>
+            </div>
+            <p class="notice" th:unless="${persistentAccounts}">Account creation requires M2 team or oracle-local and the connected M3 demonstration profile.</p>
+            <form th:if="${persistentAccounts}" th:action="@{/register}" method="post">
+                <label for="fullName">Full name</label>
+                <input id="fullName" name="fullName" type="text" autocomplete="name" maxlength="150" th:value="${fullName}" required>
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" autocomplete="email" maxlength="200" th:value="${email}" required>
+                <p id="password-help" class="hint">Use a nonblank password of at most 72 UTF-8 bytes. Spaces are preserved. Non-ASCII characters can use multiple bytes. This local demo stores passwords unchanged; use a throwaway password.</p>
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="new-password" aria-describedby="password-help" required>
+                <label for="confirmPassword">Confirm password</label>
+                <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required>
+                <button type="submit">Create account</button>
+            </form>
+            <p><a th:href="@{/login}">Back to sign in</a></p>
+        </section>
+    </main>
+</body>
+</html>

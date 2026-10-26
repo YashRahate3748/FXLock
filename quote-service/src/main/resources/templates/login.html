@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign in | FXLock</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/account.css}">
+</head>
+<body>
+    <header><a class="brand" th:href="@{/}">FXLock</a></header>
+    <main class="account-page">
+        <section class="card" aria-labelledby="login-title">
+            <h1 id="login-title">Sign in</h1>
+            <p class="notice" role="alert" th:if="${param.error}" th:text="${demoLogin} ? 'Invalid username or password.' : 'Invalid email or password.'">Invalid email or password.</p>
+            <p class="notice" role="alert" th:if="${param.unavailable}">Account verification is unavailable. Check that M3 is running with the plaintext account demonstration profile.</p>
+            <p class="notice" role="alert" th:if="${param.resetRequired}">This account needs an explicit password reset before plaintext demonstration login can use it. Existing BCrypt values cannot be used as passwords.</p>
+            <p role="status" th:if="${param.registered}">Account created. Sign in with your email and password.</p>
+            <p role="status" th:if="${param.logout}">You have signed out.</p>
+            <form th:action="@{${loginAction}}" method="post">
+                <label for="username" th:text="${demoLogin} ? 'Username' : 'Email'">Email</label>
+                <input id="username" name="username" th:type="${demoLogin} ? 'text' : 'email'" autocomplete="username" required autofocus>
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+                <button type="submit">Sign in</button>
+            </form>
+            <p th:if="${persistentAccounts}"><a th:href="@{/register}">Sign up</a></p>
+            <p th:if="${persistentAccounts}"><a th:href="${demoLogin} ? @{/login} : @{/login(demo='true')}" th:text="${demoLogin} ? 'Use email login' : 'Use demo username'">Use demo username</a></p>
+        </section>
+    </main>
+</body>
+</html>
