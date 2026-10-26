@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-purple: #501B65;
+  --color-brand-green: #37CE8E;
+  --color-brand-mint: #D3FFE5;
+  --color-brand-bright: #4DE8A6;
+  --color-brand-light: #82FFCC;
+
+  --color-page: #D3FFE5;
+  --color-surface: #FFFFFF;
+  --color-heading: #501B65;
+  --color-primary: #501B65;
+  --color-accent: #4DE8A6;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-page);
+  color: var(--color-heading);
+  font-family: Inter, sans-serif;
+}
